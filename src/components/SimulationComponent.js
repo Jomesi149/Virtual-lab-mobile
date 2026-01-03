@@ -7,6 +7,7 @@ import {
   Animated,
   Dimensions,
   TextInput,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -5200,6 +5201,2951 @@ const OccamsRazorSimulation = ({ colors, onComplete }) => {
   return null;
 };
 
+// Parkinson's Law Simulation - Input Field Challenge
+const ParkinsonsLawSimulation = ({ colors, onComplete }) => {
+  const [phase, setPhase] = useState('intro'); // intro, scenarioA, scenarioB, result
+  const [inputA, setInputA] = useState('');
+  const [inputB, setInputB] = useState('');
+  const [timeRemainingA, setTimeRemainingA] = useState(60);
+  const [timeRemainingB, setTimeRemainingB] = useState(5);
+  const [startTimeA, setStartTimeA] = useState(0);
+  const [startTimeB, setStartTimeB] = useState(0);
+  const [completionTimeA, setCompletionTimeA] = useState(0);
+  const [completionTimeB, setCompletionTimeB] = useState(0);
+  const [completedA, setCompletedA] = useState(false);
+  const [completedB, setCompletedB] = useState(false);
+  const fadeAnim = useState(new Animated.Value(0))[0];
+  const inputRefA = React.useRef(null);
+  const inputRefB = React.useRef(null);
+  const timerRefA = React.useRef(null);
+  const timerRefB = React.useRef(null);
+
+  const targetPhrase = "I accept the terms";
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 400,
+      useNativeDriver: true,
+    }).start();
+  }, [phase]);
+
+  useEffect(() => {
+    // Cleanup timers on unmount
+    return () => {
+      if (timerRefA.current) clearInterval(timerRefA.current);
+      if (timerRefB.current) clearInterval(timerRefB.current);
+    };
+  }, []);
+
+  const startScenarioA = () => {
+    fadeAnim.setValue(0);
+    setInputA('');
+    setTimeRemainingA(60);
+    setCompletedA(false);
+    setStartTimeA(Date.now());
+    setPhase('scenarioA');
+
+    // Start countdown timer
+    timerRefA.current = setInterval(() => {
+      setTimeRemainingA((prev) => {
+        if (prev <= 1) {
+          clearInterval(timerRefA.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    // Auto-focus input
+    setTimeout(() => inputRefA.current?.focus(), 500);
+  };
+
+  const startScenarioB = () => {
+    fadeAnim.setValue(0);
+    setInputB('');
+    setTimeRemainingB(5);
+    setCompletedB(false);
+    setStartTimeB(Date.now());
+    setPhase('scenarioB');
+
+    // Start countdown timer
+    timerRefB.current = setInterval(() => {
+      setTimeRemainingB((prev) => {
+        if (prev <= 1) {
+          clearInterval(timerRefB.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    // Auto-focus input
+    setTimeout(() => inputRefB.current?.focus(), 500);
+  };
+
+  const handleInputChangeA = (text) => {
+    setInputA(text);
+    
+    // Check if completed
+    if (text.toLowerCase() === targetPhrase.toLowerCase() && !completedA) {
+      const timeTaken = Date.now() - startTimeA;
+      setCompletionTimeA(timeTaken);
+      setCompletedA(true);
+      clearInterval(timerRefA.current);
+      
+      // Move to next scenario after brief delay
+      setTimeout(() => {
+        fadeAnim.setValue(0);
+        setTimeout(() => startScenarioB(), 300);
+      }, 1000);
+    }
+  };
+
+  const handleInputChangeB = (text) => {
+    setInputB(text);
+    
+    // Check if completed
+    if (text.toLowerCase() === targetPhrase.toLowerCase() && !completedB) {
+      const timeTaken = Date.now() - startTimeB;
+      setCompletionTimeB(timeTaken);
+      setCompletedB(true);
+      clearInterval(timerRefB.current);
+      
+      // Move to result after brief delay
+      setTimeout(() => {
+        fadeAnim.setValue(0);
+        setTimeout(() => setPhase('result'), 300);
+      }, 1000);
+    }
+  };
+
+  const calculateTypingSpeed = (completionTime, phraseLength) => {
+    if (completionTime === 0) return 0;
+    const minutes = completionTime / 60000; // Convert ms to minutes
+    return Math.round((phraseLength / minutes));
+  };
+
+  // Auto-advance if time runs out
+  useEffect(() => {
+    if (phase === 'scenarioA' && timeRemainingA === 0 && !completedA) {
+      setTimeout(() => {
+        fadeAnim.setValue(0);
+        setTimeout(() => startScenarioB(), 300);
+      }, 1000);
+    }
+  }, [timeRemainingA, phase, completedA]);
+
+  useEffect(() => {
+    if (phase === 'scenarioB' && timeRemainingB === 0 && !completedB) {
+      setTimeout(() => {
+        fadeAnim.setValue(0);
+        setTimeout(() => setPhase('result'), 300);
+      }, 1000);
+    }
+  }, [timeRemainingB, phase, completedB]);
+
+  // Intro Phase
+  if (phase === 'intro') {
+    return (
+      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
+        <Text style={[styles.simTitle, { color: colors.textPrimary }]}>
+          ⏰ Parkinson's Law
+        </Text>
+        <Text style={[styles.simDesc, { color: colors.textSecondary }]}>
+          "Pekerjaan mengembang untuk mengisi waktu yang tersedia." Anda akan mengetik frasa yang sama dengan 2 batasan waktu berbeda:{'\n'}
+          {'\n'}✍️ <Text style={{ fontWeight: '600' }}>Ketik: "{targetPhrase}"</Text>
+          {'\n'}⏱️ <Text style={{ fontWeight: '600' }}>Scenario 1: 60 detik (waktu berlimpah)</Text>
+          {'\n'}⚡ <Text style={{ fontWeight: '600' }}>Scenario 2: 5 detik (tekanan waktu)</Text>
+          {'\n'}{'\n'}📊 Kecepatan mengetik dan completion rate Anda akan diukur. Hipotesis: Anda akan mengetik lebih cepat dengan waktu terbatas!
+        </Text>
+        
+        <TouchableOpacity
+          style={[styles.startButton, { backgroundColor: colors.accent }]}
+          onPress={startScenarioA}
+        >
+          <Text style={styles.startButtonText}>Mulai Challenge</Text>
+          <Ionicons name="arrow-forward" size={20} color="#FFF" />
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  }
+
+  // Scenario A - Relaxed (60 seconds)
+  if (phase === 'scenarioA') {
+    const timerColor = timeRemainingA > 30 ? '#22C55E' : timeRemainingA > 10 ? '#F59E0B' : '#EF4444';
+    const progress = (60 - timeRemainingA) / 60;
+
+    return (
+      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
+        <Text style={[styles.scenarioLabel, { color: colors.accent, backgroundColor: colors.accentSubtle }]}>
+          Scenario 1 - Relaxed
+        </Text>
+        <Text style={[styles.taskPrompt, { color: colors.textPrimary }]}>
+          ✍️ Ketik frasa: <Text style={{ fontWeight: '700' }}>"{targetPhrase}"</Text>
+        </Text>
+
+        {/* Timer Display - Large and Prominent */}
+        <View style={[styles.timerContainer, { borderColor: timerColor }]}>
+          <Ionicons name="timer-outline" size={32} color={timerColor} />
+          <Text style={[styles.timerLarge, { color: timerColor }]}>
+            {timeRemainingA}s
+          </Text>
+          <Text style={[styles.timerLabel, { color: colors.textSecondary }]}>
+            {timeRemainingA > 30 ? 'Santai saja...' : timeRemainingA > 10 ? 'Masih banyak waktu' : 'Waktunya hampir habis!'}
+          </Text>
+        </View>
+
+        {/* Progress Bar */}
+        <View style={[styles.progressBarContainer, { backgroundColor: '#F3F4F6' }]}>
+          <Animated.View 
+            style={[
+              styles.progressBarFill,
+              { 
+                width: `${progress * 100}%`,
+                backgroundColor: timerColor 
+              }
+            ]} 
+          />
+        </View>
+
+        {/* Input Field */}
+        <View style={[styles.typingContainer, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+          <TextInput
+            ref={inputRefA}
+            style={[styles.typingInput, { color: colors.textPrimary }]}
+            value={inputA}
+            onChangeText={handleInputChangeA}
+            placeholder={`Ketik: ${targetPhrase}`}
+            placeholderTextColor={colors.textSecondary}
+            autoCapitalize="none"
+            autoCorrect={false}
+            multiline={false}
+          />
+          
+          {/* Character Counter */}
+          <View style={styles.counterRow}>
+            <Text style={[styles.counterText, { color: colors.textSecondary }]}>
+              {inputA.length} / {targetPhrase.length} karakter
+            </Text>
+            {completedA && (
+              <View style={styles.completedBadge}>
+                <Ionicons name="checkmark-circle" size={20} color="#22C55E" />
+                <Text style={styles.completedText}>Selesai!</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Target Reference */}
+        <View style={[styles.referenceBox, { backgroundColor: '#F9FAFB', borderColor: '#E5E7EB' }]}>
+          <Text style={[styles.referenceLabel, { color: colors.textSecondary }]}>
+            Target:
+          </Text>
+          <Text style={[styles.referenceText, { color: colors.textPrimary }]}>
+            {targetPhrase}
+          </Text>
+        </View>
+      </Animated.View>
+    );
+  }
+
+  // Scenario B - Urgent (5 seconds)
+  if (phase === 'scenarioB') {
+    const timerColor = timeRemainingB > 2 ? '#F59E0B' : '#EF4444';
+    const progress = (5 - timeRemainingB) / 5;
+
+    return (
+      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
+        <Text style={[styles.scenarioLabel, { color: '#EF4444', backgroundColor: '#FEE2E2' }]}>
+          Scenario 2 - Urgent ⚡
+        </Text>
+        <Text style={[styles.taskPrompt, { color: colors.textPrimary }]}>
+          ✍️ Ketik frasa: <Text style={{ fontWeight: '700' }}>"{targetPhrase}"</Text>
+        </Text>
+
+        {/* Timer Display - Urgent Style */}
+        <View style={[styles.timerContainer, { borderColor: timerColor, backgroundColor: '#FEF2F2' }]}>
+          <Ionicons name="alarm-outline" size={32} color={timerColor} />
+          <Text style={[styles.timerLarge, { color: timerColor }]}>
+            {timeRemainingB}s
+          </Text>
+          <Text style={[styles.timerLabel, { color: timerColor, fontWeight: '700' }]}>
+            CEPAT! ⚡
+          </Text>
+        </View>
+
+        {/* Progress Bar */}
+        <View style={[styles.progressBarContainer, { backgroundColor: '#F3F4F6' }]}>
+          <Animated.View 
+            style={[
+              styles.progressBarFill,
+              { 
+                width: `${progress * 100}%`,
+                backgroundColor: timerColor 
+              }
+            ]} 
+          />
+        </View>
+
+        {/* Input Field */}
+        <View style={[styles.typingContainer, { backgroundColor: colors.cardBackground, borderColor: timerColor, borderWidth: 2 }]}>
+          <TextInput
+            ref={inputRefB}
+            style={[styles.typingInput, { color: colors.textPrimary }]}
+            value={inputB}
+            onChangeText={handleInputChangeB}
+            placeholder={`Ketik: ${targetPhrase}`}
+            placeholderTextColor={colors.textSecondary}
+            autoCapitalize="none"
+            autoCorrect={false}
+            multiline={false}
+          />
+          
+          {/* Character Counter */}
+          <View style={styles.counterRow}>
+            <Text style={[styles.counterText, { color: colors.textSecondary }]}>
+              {inputB.length} / {targetPhrase.length} karakter
+            </Text>
+            {completedB && (
+              <View style={styles.completedBadge}>
+                <Ionicons name="checkmark-circle" size={20} color="#22C55E" />
+                <Text style={styles.completedText}>Selesai!</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Target Reference */}
+        <View style={[styles.referenceBox, { backgroundColor: '#FEF2F2', borderColor: '#FCA5A5' }]}>
+          <Text style={[styles.referenceLabel, { color: colors.textSecondary }]}>
+            Target:
+          </Text>
+          <Text style={[styles.referenceText, { color: colors.textPrimary }]}>
+            {targetPhrase}
+          </Text>
+        </View>
+      </Animated.View>
+    );
+  }
+
+  // Result Phase
+  if (phase === 'result') {
+    const speedA = calculateTypingSpeed(completionTimeA, targetPhrase.length);
+    const speedB = calculateTypingSpeed(completionTimeB, targetPhrase.length);
+    const speedImprovement = speedB > speedA ? ((speedB - speedA) / speedA * 100).toFixed(1) : 0;
+    const fasterScenario = speedB > speedA ? 'Scenario 2 (Urgent)' : speedA > speedB ? 'Scenario 1 (Relaxed)' : 'Keduanya Sama';
+
+    return (
+      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
+        <Text style={[styles.resultTitle, { color: colors.textPrimary }]}>
+          📊 Hasil Challenge
+        </Text>
+
+        {/* Stats Board */}
+        <View style={[styles.statsBoard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              ⏱️ Scenario 1 (60s limit):
+            </Text>
+            <Text style={[styles.statValue, { color: colors.accent }]}>
+              {completedA ? `${(completionTimeA / 1000).toFixed(1)}s` : 'Tidak selesai'}
+            </Text>
+          </View>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              ⚡ Kecepatan Ketik 1:
+            </Text>
+            <Text style={[styles.statValue, { color: colors.accent }]}>
+              {completedA ? `${speedA} char/min` : '0 char/min'}
+            </Text>
+          </View>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              ✅ Completion Rate 1:
+            </Text>
+            <Text style={[styles.statValue, { color: completedA ? '#22C55E' : '#EF4444' }]}>
+              {completedA ? '100%' : '0%'}
+            </Text>
+          </View>
+          
+          <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              ⏱️ Scenario 2 (5s limit):
+            </Text>
+            <Text style={[styles.statValue, { color: '#EF4444' }]}>
+              {completedB ? `${(completionTimeB / 1000).toFixed(1)}s` : 'Tidak selesai'}
+            </Text>
+          </View>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              ⚡ Kecepatan Ketik 2:
+            </Text>
+            <Text style={[styles.statValue, { color: '#EF4444' }]}>
+              {completedB ? `${speedB} char/min` : '0 char/min'}
+            </Text>
+          </View>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              ✅ Completion Rate 2:
+            </Text>
+            <Text style={[styles.statValue, { color: completedB ? '#22C55E' : '#EF4444' }]}>
+              {completedB ? '100%' : '0%'}
+            </Text>
+          </View>
+
+          <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              📈 Peningkatan Kecepatan:
+            </Text>
+            <Text style={[styles.statValue, { color: speedImprovement > 0 ? '#22C55E' : colors.textPrimary }]}>
+              {speedImprovement > 0 ? `+${speedImprovement}%` : 'N/A'}
+            </Text>
+          </View>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              🏆 Scenario Tercepat:
+            </Text>
+            <Text style={[styles.statValue, { color: colors.textPrimary, fontWeight: '700' }]}>
+              {fasterScenario}
+            </Text>
+          </View>
+        </View>
+
+        {/* Insight */}
+        <View style={[styles.resultBox, { backgroundColor: colors.accentSubtle }]}>
+          <Text style={[styles.resultText, { color: colors.accent }]}>
+            ⏰ Parkinson's Law
+          </Text>
+          <Text style={[styles.resultSubtext, { color: colors.textSecondary }]}>
+            "Pekerjaan mengembang untuk mengisi waktu yang tersedia untuk penyelesaiannya."
+            {'\n'}{'\n'}
+            {speedB > speedA 
+              ? `Hipotesis terbukti! Anda mengetik ${speedImprovement}% lebih cepat dengan tekanan waktu (5 detik) dibanding waktu berlimpah (60 detik). Deadline yang ketat memaksa kita fokus dan efisien.`
+              : completedA && !completedB
+              ? `Dengan 60 detik Anda berhasil, tapi dengan 5 detik tidak selesai. Ini menunjukkan batasan waktu terlalu ketat bisa kontraproduktif. Balance is key!`
+              : 'Waktu yang terlalu banyak membuat kita santai dan tidak efisien. Deadline yang realistis membantu produktivitas.'
+            }
+            {'\n'}{'\n'}
+            💡 <Text style={{ fontWeight: '600' }}>Prinsip Desain:</Text> Berikan deadline yang cukup ketat tapi realistis. Terlalu longgar = procrastination. Terlalu ketat = stress. Gunakan progress indicators dan countdown untuk menciptakan healthy urgency.
+          </Text>
+          <TouchableOpacity
+            style={[styles.completeBtn, { backgroundColor: '#22C55E' }]}
+            onPress={onComplete}
+          >
+            <Ionicons name="checkmark-circle" size={20} color="#FFF" />
+            <Text style={styles.completeBtnText}>Selesai</Text>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+    );
+  }
+
+  return null;
+};
+
+// Postel's Law Simulation - Currency Input Form
+const PostelsLawSimulation = ({ colors, onComplete }) => {
+  const [phase, setPhase] = useState('intro'); // intro, scenarioA, scenarioB, result
+  const [inputA, setInputA] = useState('');
+  const [inputB, setInputB] = useState('');
+  const [errorCountA, setErrorCountA] = useState(0);
+  const [successA, setSuccessA] = useState(false);
+  const [successB, setSuccessB] = useState(false);
+  const [showErrorA, setShowErrorA] = useState(false);
+  const [formattedValueB, setFormattedValueB] = useState('');
+  const fadeAnim = useState(new Animated.Value(0))[0];
+  const shakeAnim = useState(new Animated.Value(0))[0];
+  const inputRefA = React.useRef(null);
+  const inputRefB = React.useRef(null);
+
+  const targetAmount = '50000';
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 400,
+      useNativeDriver: true,
+    }).start();
+  }, [phase]);
+
+  const startScenarioA = () => {
+    fadeAnim.setValue(0);
+    setInputA('');
+    setErrorCountA(0);
+    setSuccessA(false);
+    setShowErrorA(false);
+    setPhase('scenarioA');
+    setTimeout(() => inputRefA.current?.focus(), 500);
+  };
+
+  const startScenarioB = () => {
+    fadeAnim.setValue(0);
+    setInputB('');
+    setSuccessB(false);
+    setFormattedValueB('');
+    setPhase('scenarioB');
+    setTimeout(() => inputRefB.current?.focus(), 500);
+  };
+
+  const shakeAnimation = () => {
+    shakeAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
+    ]).start();
+  };
+
+  // Strict validation for Scenario A
+  const validateStrictA = (value) => {
+    // Only accept pure numbers without any formatting
+    const cleanValue = value.trim();
+    const isValid = /^\d+$/.test(cleanValue) && cleanValue === targetAmount;
+    return isValid;
+  };
+
+  const handleSubmitA = () => {
+    if (validateStrictA(inputA)) {
+      setSuccessA(true);
+      setShowErrorA(false);
+      setTimeout(() => {
+        fadeAnim.setValue(0);
+        setTimeout(() => startScenarioB(), 300);
+      }, 1000);
+    } else {
+      setErrorCountA(prev => prev + 1);
+      setShowErrorA(true);
+      shakeAnimation();
+      setTimeout(() => setShowErrorA(false), 3000);
+    }
+  };
+
+  // Liberal parsing for Scenario B
+  const parseLiberal = (value) => {
+    // Remove common formatting characters and text
+    let cleaned = value
+      .replace(/Rp/gi, '')
+      .replace(/\$/g, '')
+      .replace(/,/g, '')
+      .replace(/\./g, '')
+      .replace(/k/gi, '000')
+      .replace(/\s/g, '')
+      .trim();
+    
+    return cleaned;
+  };
+
+  const handleInputChangeB = (value) => {
+    setInputB(value);
+    
+    // Auto-format as user types
+    const parsed = parseLiberal(value);
+    if (parsed && /^\d+$/.test(parsed)) {
+      setFormattedValueB(parsed);
+      
+      // Check if it matches target
+      if (parsed === targetAmount) {
+        setSuccessB(true);
+      } else {
+        setSuccessB(false);
+      }
+    } else {
+      setFormattedValueB('');
+      setSuccessB(false);
+    }
+  };
+
+  const handleSubmitB = () => {
+    const parsed = parseLiberal(inputB);
+    if (parsed === targetAmount) {
+      setSuccessB(true);
+      setTimeout(() => {
+        fadeAnim.setValue(0);
+        setTimeout(() => setPhase('result'), 300);
+      }, 1000);
+    }
+  };
+
+  // Intro Phase
+  if (phase === 'intro') {
+    return (
+      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
+        <Text style={[styles.simTitle, { color: colors.textPrimary }]}>
+          🔄 Postel's Law
+        </Text>
+        <Text style={[styles.simDesc, { color: colors.textSecondary }]}>
+          "Be liberal in what you accept, be conservative in what you send." Anda akan mengisi form currency dengan 2 pendekatan berbeda:{'\n'}
+          {'\n'}💰 <Text style={{ fontWeight: '600' }}>Masukkan jumlah: 50,000</Text>
+          {'\n'}⚠️ <Text style={{ fontWeight: '600' }}>Scenario 1: Validasi strict (hanya angka)</Text>
+          {'\n'}✅ <Text style={{ fontWeight: '600' }}>Scenario 2: Validasi liberal (terima berbagai format)</Text>
+          {'\n'}{'\n'}📊 Frustration dan success rate Anda akan diukur. Coba ketik "50.000" atau "50k"!
+        </Text>
+        
+        <TouchableOpacity
+          style={[styles.startButton, { backgroundColor: colors.accent }]}
+          onPress={startScenarioA}
+        >
+          <Text style={styles.startButtonText}>Mulai Form Challenge</Text>
+          <Ionicons name="arrow-forward" size={20} color="#FFF" />
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  }
+
+  // Scenario A - Strict Validation
+  if (phase === 'scenarioA') {
+    return (
+      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
+        <Text style={[styles.scenarioLabel, { color: colors.accent, backgroundColor: colors.accentSubtle }]}>
+          Scenario 1 - Strict Validation
+        </Text>
+        <Text style={[styles.taskPrompt, { color: colors.textPrimary }]}>
+          💰 Masukkan jumlah: <Text style={{ fontWeight: '700' }}>50,000</Text>
+        </Text>
+
+        {/* Form Card */}
+        <Animated.View 
+          style={[
+            styles.formCard,
+            { 
+              backgroundColor: colors.cardBackground,
+              borderColor: showErrorA ? '#EF4444' : colors.border,
+              transform: [{ translateX: shakeAnim }]
+            }
+          ]}
+        >
+          <View style={styles.formGroup}>
+            <Text style={[styles.formLabel, { color: colors.textPrimary }]}>
+              Amount <Text style={{ color: '#EF4444' }}>*</Text>
+            </Text>
+            <View style={styles.inputWrapper}>
+              <Text style={[styles.currencyPrefix, { color: colors.textSecondary }]}>Rp</Text>
+              <TextInput
+                ref={inputRefA}
+                style={[
+                  styles.currencyInput,
+                  { 
+                    color: colors.textPrimary,
+                    borderColor: showErrorA ? '#EF4444' : colors.border,
+                  }
+                ]}
+                value={inputA}
+                onChangeText={setInputA}
+                placeholder="Enter amount"
+                placeholderTextColor={colors.textSecondary}
+                keyboardType="default"
+                onSubmitEditing={handleSubmitA}
+              />
+            </View>
+            <Text style={[styles.helperText, { color: colors.textSecondary }]}>
+              Format: Numbers only (e.g., 50000)
+            </Text>
+          </View>
+
+          {/* Error Message */}
+          {showErrorA && (
+            <Animated.View 
+              style={[styles.errorBox, { opacity: fadeAnim }]}
+            >
+              <Ionicons name="alert-circle" size={20} color="#EF4444" />
+              <Text style={styles.errorText}>
+                Invalid format. Numbers only (no dots, commas, or letters).
+              </Text>
+            </Animated.View>
+          )}
+
+          {/* Success Message */}
+          {successA && (
+            <View style={styles.successBox}>
+              <Ionicons name="checkmark-circle" size={20} color="#22C55E" />
+              <Text style={styles.successText}>Amount accepted!</Text>
+            </View>
+          )}
+
+          {/* Frustration Counter */}
+          {errorCountA > 0 && (
+            <View style={styles.frustrationBadge}>
+              <Ionicons name="sad-outline" size={16} color="#EF4444" />
+              <Text style={styles.frustrationText}>
+                Errors: {errorCountA}
+              </Text>
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={[styles.submitButton, { backgroundColor: colors.accent }]}
+            onPress={handleSubmitA}
+          >
+            <Text style={styles.submitButtonText}>Submit</Text>
+            <Ionicons name="arrow-forward" size={18} color="#FFF" />
+          </TouchableOpacity>
+        </Animated.View>
+
+        {/* Hint */}
+        <View style={styles.hintBox}>
+          <Ionicons name="bulb-outline" size={16} color={colors.textSecondary} />
+          <Text style={[styles.hintText, { color: colors.textSecondary }]}>
+            Try typing: "50.000", "50k", or "Rp 50000"
+          </Text>
+        </View>
+      </Animated.View>
+    );
+  }
+
+  // Scenario B - Liberal Validation
+  if (phase === 'scenarioB') {
+    return (
+      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
+        <Text style={[styles.scenarioLabel, { color: '#22C55E', backgroundColor: '#DCFCE7' }]}>
+          Scenario 2 - Liberal Validation
+        </Text>
+        <Text style={[styles.taskPrompt, { color: colors.textPrimary }]}>
+          💰 Masukkan jumlah: <Text style={{ fontWeight: '700' }}>50,000</Text>
+        </Text>
+
+        {/* Form Card */}
+        <View 
+          style={[
+            styles.formCard,
+            { 
+              backgroundColor: colors.cardBackground,
+              borderColor: successB ? '#22C55E' : colors.border,
+            }
+          ]}
+        >
+          <View style={styles.formGroup}>
+            <Text style={[styles.formLabel, { color: colors.textPrimary }]}>
+              Amount <Text style={{ color: '#EF4444' }}>*</Text>
+            </Text>
+            <View style={styles.inputWrapper}>
+              <Text style={[styles.currencyPrefix, { color: colors.textSecondary }]}>Rp</Text>
+              <TextInput
+                ref={inputRefB}
+                style={[
+                  styles.currencyInput,
+                  { 
+                    color: colors.textPrimary,
+                    borderColor: successB ? '#22C55E' : colors.border,
+                  }
+                ]}
+                value={inputB}
+                onChangeText={handleInputChangeB}
+                placeholder="Enter amount (any format)"
+                placeholderTextColor={colors.textSecondary}
+                keyboardType="default"
+                onSubmitEditing={handleSubmitB}
+              />
+            </View>
+            <Text style={[styles.helperText, { color: colors.textSecondary }]}>
+              We accept: 50000, 50.000, 50,000, 50k, Rp 50000, etc.
+            </Text>
+          </View>
+
+          {/* Live Format Preview */}
+          {formattedValueB && (
+            <View style={styles.formatPreview}>
+              <Ionicons name="sync-outline" size={16} color="#3B82F6" />
+              <Text style={styles.formatPreviewText}>
+                Auto-formatted: <Text style={{ fontWeight: '700' }}>{formattedValueB}</Text>
+              </Text>
+            </View>
+          )}
+
+          {/* Success Message */}
+          {successB && (
+            <View style={styles.successBox}>
+              <Ionicons name="checkmark-circle" size={20} color="#22C55E" />
+              <Text style={styles.successText}>
+                Perfect! Amount accepted and formatted.
+              </Text>
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={[
+              styles.submitButton,
+              { backgroundColor: successB ? '#22C55E' : colors.accent }
+            ]}
+            onPress={handleSubmitB}
+          >
+            <Text style={styles.submitButtonText}>Submit</Text>
+            <Ionicons name="arrow-forward" size={18} color="#FFF" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Hint */}
+        <View style={styles.hintBox}>
+          <Ionicons name="bulb-outline" size={16} color="#22C55E" />
+          <Text style={[styles.hintText, { color: colors.textSecondary }]}>
+            Type in any format you like - we'll understand! 😊
+          </Text>
+        </View>
+      </Animated.View>
+    );
+  }
+
+  // Result Phase
+  if (phase === 'result') {
+    const successRateA = successA ? 100 : 0;
+    const successRateB = successB ? 100 : 0;
+    const betterApproach = successRateB >= successRateA && errorCountA === 0 ? 'Both Equal' : 'Scenario 2 (Liberal)';
+
+    return (
+      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
+        <Text style={[styles.resultTitle, { color: colors.textPrimary }]}>
+          📊 Hasil Evaluasi
+        </Text>
+
+        {/* Stats Board */}
+        <View style={[styles.statsBoard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              😤 Frustration Scenario 1:
+            </Text>
+            <Text style={[styles.statValue, { color: errorCountA > 0 ? '#EF4444' : '#22C55E' }]}>
+              {errorCountA} errors
+            </Text>
+          </View>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              ✅ Success Rate Scenario 1:
+            </Text>
+            <Text style={[styles.statValue, { color: successA ? '#22C55E' : '#EF4444' }]}>
+              {successRateA}%
+            </Text>
+          </View>
+          
+          <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              😤 Frustration Scenario 2:
+            </Text>
+            <Text style={[styles.statValue, { color: '#22C55E' }]}>
+              0 errors
+            </Text>
+          </View>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              ✅ Success Rate Scenario 2:
+            </Text>
+            <Text style={[styles.statValue, { color: successB ? '#22C55E' : '#EF4444' }]}>
+              {successRateB}%
+            </Text>
+          </View>
+
+          <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              📉 Frustration Reduction:
+            </Text>
+            <Text style={[styles.statValue, { color: '#22C55E', fontWeight: '700' }]}>
+              {errorCountA > 0 ? `${errorCountA} → 0` : 'No change'}
+            </Text>
+          </View>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              🏆 Better Approach:
+            </Text>
+            <Text style={[styles.statValue, { color: colors.textPrimary, fontWeight: '700' }]}>
+              {betterApproach}
+            </Text>
+          </View>
+        </View>
+
+        {/* Insight */}
+        <View style={[styles.resultBox, { backgroundColor: colors.accentSubtle }]}>
+          <Text style={[styles.resultText, { color: colors.accent }]}>
+            🔄 Postel's Law (Robustness Principle)
+          </Text>
+          <Text style={[styles.resultSubtext, { color: colors.textSecondary }]}>
+            "Be conservative in what you send, be liberal in what you accept."
+            {'\n'}{'\n'}
+            Scenario 1 (strict) menyebabkan {errorCountA} error{errorCountA !== 1 ? 's' : ''} karena menolak format umum seperti "50.000" atau "50k". User frustasi harus menebak-nebak format yang benar!
+            {'\n'}{'\n'}
+            Scenario 2 (liberal) menerima berbagai format input dan otomatis memformatnya. Result: 0 errors, happy users! 😊
+            {'\n'}{'\n'}
+            💡 <Text style={{ fontWeight: '600' }}>Prinsip Desain:</Text> Accept flexible input formats (dots, commas, k for thousands, currency symbols). Parse and normalize on the backend. Show helpful real-time formatting. Never punish users for natural input patterns!
+          </Text>
+          <TouchableOpacity
+            style={[styles.completeBtn, { backgroundColor: '#22C55E' }]}
+            onPress={onComplete}
+          >
+            <Ionicons name="checkmark-circle" size={20} color="#FFF" />
+            <Text style={styles.completeBtnText}>Selesai</Text>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+    );
+  }
+
+  return null;
+};
+
+// Serial Position Effect Simulation - Horizontal Carousel Scroll
+const SerialPositionSimulation = ({ colors, onComplete }) => {
+  const [phase, setPhase] = useState('intro'); // intro, study, recall, result
+  const [selectedItems, setSelectedItems] = useState([]);
+  const [recallOrder, setRecallOrder] = useState([]);
+  const fadeAnim = useState(new Animated.Value(0))[0];
+  const scrollAnim = useState(new Animated.Value(0))[0];
+
+  // 10 fruit items for the carousel
+  const fruits = [
+    { id: 1, name: 'Apple', icon: '🍎', position: 1, category: 'primacy' },
+    { id: 2, name: 'Banana', icon: '🍌', position: 2, category: 'primacy' },
+    { id: 3, name: 'Cherry', icon: '🍒', position: 3, category: 'primacy' },
+    { id: 4, name: 'Dragon Fruit', icon: '🐉', position: 4, category: 'middle' },
+    { id: 5, name: 'Eggplant', icon: '🍆', position: 5, category: 'middle' },
+    { id: 6, name: 'Fig', icon: '🫐', position: 6, category: 'middle' },
+    { id: 7, name: 'Grape', icon: '🍇', position: 7, category: 'middle' },
+    { id: 8, name: 'Honeydew', icon: '🍈', position: 8, category: 'recency' },
+    { id: 9, name: 'Kiwi', icon: '🥝', position: 9, category: 'recency' },
+    { id: 10, name: 'Lemon', icon: '🍋', position: 10, category: 'recency' },
+  ];
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 400,
+      useNativeDriver: true,
+    }).start();
+  }, [phase]);
+
+  const startStudy = () => {
+    fadeAnim.setValue(0);
+    setPhase('study');
+    
+    // Auto-scroll animation to show user they should scroll
+    Animated.sequence([
+      Animated.timing(scrollAnim, {
+        toValue: 100,
+        duration: 1000,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scrollAnim, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const handleDoneStudying = () => {
+    // Shuffle fruits for recall phase
+    const shuffled = [...fruits].sort(() => Math.random() - 0.5);
+    setRecallOrder(shuffled);
+    fadeAnim.setValue(0);
+    setPhase('recall');
+  };
+
+  const toggleSelection = (fruitId) => {
+    setSelectedItems(prev => {
+      if (prev.includes(fruitId)) {
+        return prev.filter(id => id !== fruitId);
+      } else {
+        return [...prev, fruitId];
+      }
+    });
+  };
+
+  const handleSubmitRecall = () => {
+    fadeAnim.setValue(0);
+    setTimeout(() => setPhase('result'), 300);
+  };
+
+  // Calculate recall metrics
+  const calculateMetrics = () => {
+    const primacyItems = fruits.filter(f => f.category === 'primacy').map(f => f.id);
+    const middleItems = fruits.filter(f => f.category === 'middle').map(f => f.id);
+    const recencyItems = fruits.filter(f => f.category === 'recency').map(f => f.id);
+
+    const primacyRecall = primacyItems.filter(id => selectedItems.includes(id)).length;
+    const middleRecall = middleItems.filter(id => selectedItems.includes(id)).length;
+    const recencyRecall = recencyItems.filter(id => selectedItems.includes(id)).length;
+
+    const primacyRate = Math.round((primacyRecall / primacyItems.length) * 100);
+    const middleRate = Math.round((middleRecall / middleItems.length) * 100);
+    const recencyRate = Math.round((recencyRecall / recencyItems.length) * 100);
+
+    // Check if item #1 and #10 were remembered
+    const firstItemRecalled = selectedItems.includes(1);
+    const lastItemRecalled = selectedItems.includes(10);
+    const middleItemRecalled = selectedItems.includes(5);
+
+    return {
+      primacyRecall,
+      middleRecall,
+      recencyRecall,
+      primacyRate,
+      middleRate,
+      recencyRate,
+      totalRecall: selectedItems.length,
+      totalItems: fruits.length,
+      firstItemRecalled,
+      lastItemRecalled,
+      middleItemRecalled,
+    };
+  };
+
+  // Intro Phase
+  if (phase === 'intro') {
+    return (
+      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
+        <Text style={[styles.simTitle, { color: colors.textPrimary }]}>
+          📊 Serial Position Effect
+        </Text>
+        <Text style={[styles.simDesc, { color: colors.textSecondary }]}>
+          Tes memori Anda! Simulasi ini akan mendemonstrasikan bagaimana posisi item dalam list mempengaruhi recall:{'\n'}
+          {'\n'}👁️ <Text style={{ fontWeight: '600' }}>Lihat: Scroll horizontal list 10 buah-buahan</Text>
+          {'\n'}🧠 <Text style={{ fontWeight: '600' }}>Ingat: Hafalkan buah-buahan yang Anda lihat</Text>
+          {'\n'}✅ <Text style={{ fontWeight: '600' }}>Pilih: Tap buah yang Anda ingat</Text>
+          {'\n'}{'\n'}📈 Hipotesis: Anda akan mengingat item pertama (#1) dan terakhir (#10) lebih baik daripada item tengah (#5).
+        </Text>
+        
+        <TouchableOpacity
+          style={[styles.startButton, { backgroundColor: colors.accent }]}
+          onPress={startStudy}
+        >
+          <Text style={styles.startButtonText}>Mulai Memory Test</Text>
+          <Ionicons name="arrow-forward" size={20} color="#FFF" />
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  }
+
+  // Study Phase - Horizontal Carousel
+  if (phase === 'study') {
+    return (
+      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
+        <Text style={[styles.scenarioLabel, { color: colors.accent, backgroundColor: colors.accentSubtle }]}>
+          Study Phase
+        </Text>
+        <Text style={[styles.taskPrompt, { color: colors.textPrimary }]}>
+          👆 Scroll untuk melihat semua buah-buahan
+        </Text>
+
+        {/* Horizontal Scrollable List */}
+        <View style={styles.carouselContainer}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={true}
+            style={styles.carousel}
+            contentContainerStyle={styles.carouselContent}
+          >
+            {fruits.map((fruit, index) => (
+              <Animated.View
+                key={fruit.id}
+                style={[
+                  styles.fruitCard,
+                  { 
+                    backgroundColor: colors.cardBackground,
+                    borderColor: colors.border,
+                  }
+                ]}
+              >
+                <Text style={styles.fruitIcon}>{fruit.icon}</Text>
+                <Text style={[styles.fruitName, { color: colors.textPrimary }]}>
+                  {fruit.name}
+                </Text>
+                <View style={[styles.positionBadge, { backgroundColor: colors.accentSubtle }]}>
+                  <Text style={[styles.positionText, { color: colors.accent }]}>
+                    #{fruit.position}
+                  </Text>
+                </View>
+              </Animated.View>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Instructions */}
+        <View style={[styles.instructionBox, { backgroundColor: '#FEF3C7', borderColor: '#FCD34D' }]}>
+          <Ionicons name="information-circle" size={20} color="#D97706" />
+          <Text style={[styles.instructionText, { color: '#92400E' }]}>
+            Scroll ke kanan untuk melihat semua 10 buah. Hafalkan sebanyak mungkin!
+          </Text>
+        </View>
+
+        {/* Done Button */}
+        <TouchableOpacity
+          style={[styles.doneButton, { backgroundColor: colors.accent }]}
+          onPress={handleDoneStudying}
+        >
+          <Text style={styles.doneButtonText}>Selesai Menghafalkan</Text>
+          <Ionicons name="checkmark" size={20} color="#FFF" />
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  }
+
+  // Recall Phase - Select remembered items
+  if (phase === 'recall') {
+    return (
+      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
+        <Text style={[styles.scenarioLabel, { color: '#8B5CF6', backgroundColor: '#EDE9FE' }]}>
+          Recall Phase
+        </Text>
+        <Text style={[styles.taskPrompt, { color: colors.textPrimary }]}>
+          🧠 Pilih buah yang Anda ingat dari list
+        </Text>
+
+        {/* Selection Grid (Shuffled Order) */}
+        <View style={styles.recallGrid}>
+          {recallOrder.map((fruit) => {
+            const isSelected = selectedItems.includes(fruit.id);
+            return (
+              <TouchableOpacity
+                key={fruit.id}
+                style={[
+                  styles.recallCard,
+                  { 
+                    backgroundColor: isSelected ? '#8B5CF6' : colors.cardBackground,
+                    borderColor: isSelected ? '#7C3AED' : colors.border,
+                  }
+                ]}
+                onPress={() => toggleSelection(fruit.id)}
+              >
+                <Text style={[styles.recallIcon, { opacity: isSelected ? 1 : 0.7 }]}>
+                  {fruit.icon}
+                </Text>
+                <Text style={[styles.recallName, { color: isSelected ? '#FFF' : colors.textPrimary }]}>
+                  {fruit.name}
+                </Text>
+                {isSelected && (
+                  <View style={styles.checkMark}>
+                    <Ionicons name="checkmark-circle" size={24} color="#FFF" />
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Counter */}
+        <View style={[styles.counterBox, { backgroundColor: '#F3F4F6' }]}>
+          <Text style={[styles.counterText, { color: colors.textSecondary }]}>
+            Dipilih: {selectedItems.length} / {fruits.length}
+          </Text>
+        </View>
+
+        {/* Submit Button */}
+        <TouchableOpacity
+          style={[
+            styles.submitButton,
+            { 
+              backgroundColor: selectedItems.length > 0 ? '#8B5CF6' : '#D1D5DB',
+              opacity: selectedItems.length > 0 ? 1 : 0.6,
+            }
+          ]}
+          onPress={handleSubmitRecall}
+          disabled={selectedItems.length === 0}
+        >
+          <Text style={styles.submitButtonText}>Submit Jawaban</Text>
+          <Ionicons name="arrow-forward" size={18} color="#FFF" />
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  }
+
+  // Result Phase
+  if (phase === 'result') {
+    const metrics = calculateMetrics();
+    const serialPositionConfirmed = 
+      (metrics.primacyRate > metrics.middleRate) || 
+      (metrics.recencyRate > metrics.middleRate);
+
+    return (
+      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
+        <Text style={[styles.resultTitle, { color: colors.textPrimary }]}>
+          📊 Hasil Memory Test
+        </Text>
+
+        {/* Stats Board */}
+        <View style={[styles.statsBoard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              🥇 Primacy (Item 1-3):
+            </Text>
+            <Text style={[styles.statValue, { color: '#22C55E', fontWeight: '700' }]}>
+              {metrics.primacyRecall}/3 ({metrics.primacyRate}%)
+            </Text>
+          </View>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              📊 Middle (Item 4-7):
+            </Text>
+            <Text style={[styles.statValue, { color: '#EF4444', fontWeight: '700' }]}>
+              {metrics.middleRecall}/4 ({metrics.middleRate}%)
+            </Text>
+          </View>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              🥉 Recency (Item 8-10):
+            </Text>
+            <Text style={[styles.statValue, { color: '#22C55E', fontWeight: '700' }]}>
+              {metrics.recencyRecall}/3 ({metrics.recencyRate}%)
+            </Text>
+          </View>
+          
+          <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              🍎 Item #1 (First):
+            </Text>
+            <Text style={[styles.statValue, { color: metrics.firstItemRecalled ? '#22C55E' : '#EF4444' }]}>
+              {metrics.firstItemRecalled ? '✓ Ingat' : '✗ Lupa'}
+            </Text>
+          </View>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              🍆 Item #5 (Middle):
+            </Text>
+            <Text style={[styles.statValue, { color: metrics.middleItemRecalled ? '#22C55E' : '#EF4444' }]}>
+              {metrics.middleItemRecalled ? '✓ Ingat' : '✗ Lupa'}
+            </Text>
+          </View>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              🍋 Item #10 (Last):
+            </Text>
+            <Text style={[styles.statValue, { color: metrics.lastItemRecalled ? '#22C55E' : '#EF4444' }]}>
+              {metrics.lastItemRecalled ? '✓ Ingat' : '✗ Lupa'}
+            </Text>
+          </View>
+
+          <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              📈 Total Recall:
+            </Text>
+            <Text style={[styles.statValue, { color: colors.textPrimary, fontWeight: '700' }]}>
+              {metrics.totalRecall}/{metrics.totalItems} items
+            </Text>
+          </View>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              🎯 Hipotesis:
+            </Text>
+            <Text style={[styles.statValue, { color: serialPositionConfirmed ? '#22C55E' : '#EF4444', fontWeight: '700' }]}>
+              {serialPositionConfirmed ? 'Terbukti ✓' : 'Tidak Terbukti'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Insight */}
+        <View style={[styles.resultBox, { backgroundColor: colors.accentSubtle }]}>
+          <Text style={[styles.resultText, { color: colors.accent }]}>
+            📊 Serial Position Effect
+          </Text>
+          <Text style={[styles.resultSubtext, { color: colors.textSecondary }]}>
+            User cenderung mengingat item pertama (Primacy: {metrics.primacyRate}%) dan item terakhir (Recency: {metrics.recencyRate}%) lebih baik daripada item tengah (Middle: {metrics.middleRate}%)!
+            {'\n'}{'\n'}
+            {serialPositionConfirmed 
+              ? `Hasil Anda membuktikan Serial Position Effect! Item di awal dan akhir list lebih mudah diingat.`
+              : `Hasil Anda tidak sepenuhnya mengikuti pola, tapi Serial Position Effect tetap valid secara statistik untuk mayoritas user.`
+            }
+            {'\n'}{'\n'}
+            💡 <Text style={{ fontWeight: '600' }}>Prinsip Desain:</Text> Tempatkan informasi penting di awal atau akhir list/menu. Item di tengah cenderung dilupakan. Gunakan untuk navigation bar (penting di kiri/kanan), pricing tables (best plan di edge), feature lists, dll.
+          </Text>
+          <TouchableOpacity
+            style={[styles.completeBtn, { backgroundColor: '#22C55E' }]}
+            onPress={onComplete}
+          >
+            <Ionicons name="checkmark-circle" size={20} color="#FFF" />
+            <Text style={styles.completeBtnText}>Selesai</Text>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+    );
+  }
+
+  return null;
+};
+
+// Tesler's Law Simulation - Shipping Location Config
+const TeslersLawSimulation = ({ colors, onComplete }) => {
+  const [phase, setPhase] = useState('intro'); // intro, scenarioA, scenarioB, result
+  const [startTimeA, setStartTimeA] = useState(0);
+  const [startTimeB, setStartTimeB] = useState(0);
+  const [timeA, setTimeA] = useState(0);
+  const [timeB, setTimeB] = useState(0);
+  const [tapCountA, setTapCountA] = useState(0);
+  const [tapCountB, setTapCountB] = useState(0);
+  
+  // Scenario A states
+  const [selectedCountry, setSelectedCountry] = useState('');
+  const [selectedProvince, setSelectedProvince] = useState('');
+  const [selectedCity, setSelectedCity] = useState('');
+  const [showProvinces, setShowProvinces] = useState(false);
+  const [showCities, setShowCities] = useState(false);
+  
+  // Scenario B state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedLocationB, setSelectedLocationB] = useState('');
+  
+  const fadeAnim = useState(new Animated.Value(0))[0];
+  const slideAnim = useState(new Animated.Value(0))[0];
+
+  const targetLocation = 'Jakarta, Indonesia';
+
+  // Dropdown data
+  const countries = ['Indonesia', 'Malaysia', 'Singapore', 'Thailand'];
+  const provinces = {
+    'Indonesia': ['DKI Jakarta', 'Jawa Barat', 'Jawa Tengah', 'Jawa Timur', 'Bali'],
+  };
+  const cities = {
+    'DKI Jakarta': ['Jakarta Pusat', 'Jakarta', 'Jakarta Selatan', 'Jakarta Timur', 'Jakarta Barat'],
+  };
+
+  // Smart search suggestions
+  const locationSuggestions = [
+    'Jakarta, Indonesia',
+    'Jakarta Pusat, Indonesia',
+    'Jakarta Selatan, Indonesia',
+    'Bandung, Indonesia',
+    'Surabaya, Indonesia',
+  ];
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 400,
+      useNativeDriver: true,
+    }).start();
+  }, [phase]);
+
+  const startScenarioA = () => {
+    fadeAnim.setValue(0);
+    setSelectedCountry('');
+    setSelectedProvince('');
+    setSelectedCity('');
+    setShowProvinces(false);
+    setShowCities(false);
+    setTapCountA(0);
+    setStartTimeA(Date.now());
+    setPhase('scenarioA');
+  };
+
+  const startScenarioB = () => {
+    fadeAnim.setValue(0);
+    setSearchQuery('');
+    setShowSuggestions(false);
+    setSelectedLocationB('');
+    setTapCountB(0);
+    setStartTimeB(Date.now());
+    setPhase('scenarioB');
+  };
+
+  const handleCountrySelect = (country) => {
+    setSelectedCountry(country);
+    setTapCountA(prev => prev + 1);
+    
+    if (country === 'Indonesia') {
+      setTimeout(() => {
+        setShowProvinces(true);
+        Animated.timing(slideAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }).start();
+      }, 500);
+    }
+  };
+
+  const handleProvinceSelect = (province) => {
+    setSelectedProvince(province);
+    setTapCountA(prev => prev + 1);
+    
+    if (province === 'DKI Jakarta') {
+      setTimeout(() => {
+        setShowCities(true);
+        slideAnim.setValue(0);
+        Animated.timing(slideAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }).start();
+      }, 500);
+    }
+  };
+
+  const handleCitySelect = (city) => {
+    setSelectedCity(city);
+    setTapCountA(prev => prev + 1);
+    
+    if (city === 'Jakarta') {
+      const timeTaken = Date.now() - startTimeA;
+      setTimeA(timeTaken);
+      fadeAnim.setValue(0);
+      setTimeout(() => startScenarioB(), 1000);
+    }
+  };
+
+  const handleUseCurrentLocation = () => {
+    setTapCountB(1);
+    setSelectedLocationB(targetLocation);
+    
+    // Simulate GPS detection
+    setTimeout(() => {
+      const timeTaken = Date.now() - startTimeB;
+      setTimeB(timeTaken);
+      fadeAnim.setValue(0);
+      setTimeout(() => setPhase('result'), 1000);
+    }, 1500);
+  };
+
+  const handleSearchChange = (text) => {
+    setSearchQuery(text);
+    if (text.length > 0) {
+      setShowSuggestions(true);
+    } else {
+      setShowSuggestions(false);
+    }
+  };
+
+  const handleSuggestionSelect = (suggestion) => {
+    setTapCountB(prev => prev + 2); // Tap to focus + tap to select
+    setSearchQuery(suggestion);
+    setSelectedLocationB(suggestion);
+    setShowSuggestions(false);
+    
+    if (suggestion === targetLocation) {
+      const timeTaken = Date.now() - startTimeB;
+      setTimeB(timeTaken);
+      fadeAnim.setValue(0);
+      setTimeout(() => setPhase('result'), 800);
+    }
+  };
+
+  // Intro Phase
+  if (phase === 'intro') {
+    return (
+      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
+        <Text style={[styles.simTitle, { color: colors.textPrimary }]}>
+          ⚖️ Tesler's Law
+        </Text>
+        <Text style={[styles.simDesc, { color: colors.textSecondary }]}>
+          "Untuk setiap sistem, ada sejumlah kompleksitas yang tidak dapat dikurangi - hanya dipindahkan." Anda akan mengatur lokasi pengiriman dengan 2 cara berbeda:{'\n'}
+          {'\n'}📍 <Text style={{ fontWeight: '600' }}>Set lokasi ke: Jakarta, Indonesia</Text>
+          {'\n'}😓 <Text style={{ fontWeight: '600' }}>Scenario 1: User menanggung kompleksitas (3 dropdown)</Text>
+          {'\n'}😊 <Text style={{ fontWeight: '600' }}>Scenario 2: Sistem menanggung kompleksitas (smart input)</Text>
+          {'\n'}{'\n'}📊 Interaction cost (jumlah tap) dan waktu akan diukur.
+        </Text>
+        
+        <TouchableOpacity
+          style={[styles.startButton, { backgroundColor: colors.accent }]}
+          onPress={startScenarioA}
+        >
+          <Text style={styles.startButtonText}>Mulai Task</Text>
+          <Ionicons name="arrow-forward" size={20} color="#FFF" />
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  }
+
+  // Scenario A - User Burden (Multiple Dropdowns)
+  if (phase === 'scenarioA') {
+    return (
+      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
+        <Text style={[styles.scenarioLabel, { color: colors.accent, backgroundColor: colors.accentSubtle }]}>
+          Scenario 1 - User Burden
+        </Text>
+        <Text style={[styles.taskPrompt, { color: colors.textPrimary }]}>
+          📍 Set lokasi: <Text style={{ fontWeight: '700' }}>Jakarta, Indonesia</Text>
+        </Text>
+
+        {/* Multi-step Dropdowns */}
+        <View style={[styles.locationForm, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+          {/* Step 1: Country */}
+          <View style={styles.dropdownSection}>
+            <Text style={[styles.dropdownLabel, { color: colors.textPrimary }]}>
+              Step 1: Select Country <Text style={{ color: '#EF4444' }}>*</Text>
+            </Text>
+            <View style={styles.dropdownOptions}>
+              {countries.map((country) => (
+                <TouchableOpacity
+                  key={country}
+                  style={[
+                    styles.dropdownButton,
+                    { 
+                      backgroundColor: selectedCountry === country ? colors.accent : '#F3F4F6',
+                      borderColor: selectedCountry === country ? colors.accent : '#D1D5DB',
+                    }
+                  ]}
+                  onPress={() => handleCountrySelect(country)}
+                >
+                  <Text style={[styles.dropdownButtonText, { color: selectedCountry === country ? '#FFF' : colors.textSecondary }]}>
+                    {country}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Step 2: Province (after country selected) */}
+          {showProvinces && (
+            <Animated.View 
+              style={[
+                styles.dropdownSection,
+                { opacity: slideAnim, transform: [{ translateY: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }
+              ]}
+            >
+              <Text style={[styles.dropdownLabel, { color: colors.textPrimary }]}>
+                Step 2: Select Province <Text style={{ color: '#EF4444' }}>*</Text>
+              </Text>
+              <View style={styles.dropdownOptions}>
+                {provinces['Indonesia'].map((province) => (
+                  <TouchableOpacity
+                    key={province}
+                    style={[
+                      styles.dropdownButton,
+                      { 
+                        backgroundColor: selectedProvince === province ? colors.accent : '#F3F4F6',
+                        borderColor: selectedProvince === province ? colors.accent : '#D1D5DB',
+                      }
+                    ]}
+                    onPress={() => handleProvinceSelect(province)}
+                  >
+                    <Text style={[styles.dropdownButtonText, { color: selectedProvince === province ? '#FFF' : colors.textSecondary }]}>
+                      {province}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </Animated.View>
+          )}
+
+          {/* Step 3: City (after province selected) */}
+          {showCities && (
+            <Animated.View 
+              style={[
+                styles.dropdownSection,
+                { opacity: slideAnim, transform: [{ translateY: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }
+              ]}
+            >
+              <Text style={[styles.dropdownLabel, { color: colors.textPrimary }]}>
+                Step 3: Select City <Text style={{ color: '#EF4444' }}>*</Text>
+              </Text>
+              <View style={styles.dropdownOptions}>
+                {cities['DKI Jakarta'].map((city) => (
+                  <TouchableOpacity
+                    key={city}
+                    style={[
+                      styles.dropdownButton,
+                      { 
+                        backgroundColor: selectedCity === city ? colors.accent : '#F3F4F6',
+                        borderColor: selectedCity === city ? colors.accent : '#D1D5DB',
+                      }
+                    ]}
+                    onPress={() => handleCitySelect(city)}
+                  >
+                    <Text style={[styles.dropdownButtonText, { color: selectedCity === city ? '#FFF' : colors.textSecondary }]}>
+                      {city}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </Animated.View>
+          )}
+
+          {/* Tap Counter */}
+          <View style={[styles.tapCounter, { backgroundColor: '#FEF3C7' }]}>
+            <Ionicons name="hand-left-outline" size={18} color="#D97706" />
+            <Text style={[styles.tapCounterText, { color: '#92400E' }]}>
+              Taps: {tapCountA}
+            </Text>
+          </View>
+        </View>
+      </Animated.View>
+    );
+  }
+
+  // Scenario B - System Burden (Smart Input)
+  if (phase === 'scenarioB') {
+    const isGPSMode = selectedLocationB && !searchQuery;
+
+    return (
+      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
+        <Text style={[styles.scenarioLabel, { color: '#22C55E', backgroundColor: '#DCFCE7' }]}>
+          Scenario 2 - System Burden
+        </Text>
+        <Text style={[styles.taskPrompt, { color: colors.textPrimary }]}>
+          📍 Set lokasi: <Text style={{ fontWeight: '700' }}>Jakarta, Indonesia</Text>
+        </Text>
+
+        {/* Smart Location Input */}
+        <View style={[styles.smartLocationForm, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+          {/* Option 1: Use Current Location */}
+          <TouchableOpacity
+            style={[styles.gpsButton, { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }]}
+            onPress={handleUseCurrentLocation}
+            disabled={!!selectedLocationB}
+          >
+            <Ionicons name="location" size={24} color="#22C55E" />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.gpsButtonTitle, { color: '#166534' }]}>
+                Use Current Location
+              </Text>
+              <Text style={[styles.gpsButtonSubtitle, { color: '#15803D' }]}>
+                Automatically detect your location
+              </Text>
+            </View>
+            {isGPSMode && <Ionicons name="checkmark-circle" size={24} color="#22C55E" />}
+          </TouchableOpacity>
+
+          <View style={styles.divider}>
+            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+            <Text style={[styles.dividerText, { color: colors.textSecondary }]}>OR</Text>
+            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+          </View>
+
+          {/* Option 2: Smart Search */}
+          <View style={styles.searchSection}>
+            <Text style={[styles.searchLabel, { color: colors.textPrimary }]}>
+              Search Location
+            </Text>
+            <View style={[styles.searchBox, { borderColor: colors.border }]}>
+              <Ionicons name="search" size={20} color={colors.textSecondary} />
+              <TextInput
+                style={[styles.searchInput, { color: colors.textPrimary }]}
+                value={searchQuery}
+                onChangeText={handleSearchChange}
+                placeholder="Type city name..."
+                placeholderTextColor={colors.textSecondary}
+                onFocus={() => setTapCountB(prev => prev + 1)}
+              />
+            </View>
+
+            {/* Smart Suggestions */}
+            {showSuggestions && (
+              <View style={[styles.suggestionsBox, { backgroundColor: '#FFFFFF', borderColor: colors.border }]}>
+                {locationSuggestions
+                  .filter(loc => loc.toLowerCase().includes(searchQuery.toLowerCase()))
+                  .map((suggestion, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={styles.suggestionItem}
+                      onPress={() => handleSuggestionSelect(suggestion)}
+                    >
+                      <Ionicons name="location-outline" size={18} color={colors.textSecondary} />
+                      <Text style={[styles.suggestionText, { color: colors.textPrimary }]}>
+                        {suggestion}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+              </View>
+            )}
+          </View>
+
+          {/* Selected Location Display */}
+          {selectedLocationB && (
+            <View style={[styles.selectedLocationBox, { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }]}>
+              <Ionicons name="checkmark-circle" size={20} color="#22C55E" />
+              <Text style={[styles.selectedLocationText, { color: '#166534' }]}>
+                {selectedLocationB}
+              </Text>
+            </View>
+          )}
+
+          {/* Tap Counter */}
+          <View style={[styles.tapCounter, { backgroundColor: '#DCFCE7' }]}>
+            <Ionicons name="hand-left-outline" size={18} color="#22C55E" />
+            <Text style={[styles.tapCounterText, { color: '#166534' }]}>
+              Taps: {tapCountB}
+            </Text>
+          </View>
+        </View>
+      </Animated.View>
+    );
+  }
+
+  // Result Phase
+  if (phase === 'result') {
+    const interactionReduction = ((tapCountA - tapCountB) / tapCountA * 100).toFixed(0);
+    const timeReduction = ((timeA - timeB) / timeA * 100).toFixed(1);
+
+    return (
+      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
+        <Text style={[styles.resultTitle, { color: colors.textPrimary }]}>
+          📊 Hasil Analisis
+        </Text>
+
+        {/* Stats Board */}
+        <View style={[styles.statsBoard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              👆 Taps Scenario 1:
+            </Text>
+            <Text style={[styles.statValue, { color: '#EF4444', fontWeight: '700' }]}>
+              {tapCountA} taps
+            </Text>
+          </View>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              ⏱️ Time Scenario 1:
+            </Text>
+            <Text style={[styles.statValue, { color: '#EF4444' }]}>
+              {(timeA / 1000).toFixed(1)}s
+            </Text>
+          </View>
+          
+          <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              👆 Taps Scenario 2:
+            </Text>
+            <Text style={[styles.statValue, { color: '#22C55E', fontWeight: '700' }]}>
+              {tapCountB} {tapCountB === 1 ? 'tap' : 'taps'}
+            </Text>
+          </View>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              ⏱️ Time Scenario 2:
+            </Text>
+            <Text style={[styles.statValue, { color: '#22C55E' }]}>
+              {(timeB / 1000).toFixed(1)}s
+            </Text>
+          </View>
+
+          <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              📉 Interaction Reduction:
+            </Text>
+            <Text style={[styles.statValue, { color: '#22C55E', fontWeight: '700' }]}>
+              -{interactionReduction}%
+            </Text>
+          </View>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              ⚡ Time Saved:
+            </Text>
+            <Text style={[styles.statValue, { color: '#22C55E', fontWeight: '700' }]}>
+              {timeReduction}% faster
+            </Text>
+          </View>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              🏆 Better Approach:
+            </Text>
+            <Text style={[styles.statValue, { color: colors.textPrimary, fontWeight: '700' }]}>
+              Scenario 2 (System)
+            </Text>
+          </View>
+        </View>
+
+        {/* Insight */}
+        <View style={[styles.resultBox, { backgroundColor: colors.accentSubtle }]}>
+          <Text style={[styles.resultText, { color: colors.accent }]}>
+            ⚖️ Tesler's Law (Conservation of Complexity)
+          </Text>
+          <Text style={[styles.resultSubtext, { color: colors.textSecondary }]}>
+            "Untuk setiap sistem ada sejumlah kompleksitas yang tidak dapat dihilangkan - hanya dipindahkan."
+            {'\n'}{'\n'}
+            Scenario 1 memaksa USER menanggung kompleksitas ({tapCountA} taps, {(timeA/1000).toFixed(1)}s). Scenario 2 memindahkan kompleksitas ke SISTEM (GPS auto-detect, smart search) - hasilnya: hanya {tapCountB} tap, {timeReduction}% lebih cepat!
+            {'\n'}{'\n'}
+            💡 <Text style={{ fontWeight: '600' }}>Prinsip Desain:</Text> Jangan takut membuat backend/sistem lebih kompleks jika itu menyederhanakan UX. Investasi di smart features (GPS, auto-complete, intelligent defaults, ML suggestions) membuat user experience jauh lebih baik. Complexity is inevitable - choose who bears it wisely!
+          </Text>
+          <TouchableOpacity
+            style={[styles.completeBtn, { backgroundColor: '#22C55E' }]}
+            onPress={onComplete}
+          >
+            <Ionicons name="checkmark-circle" size={20} color="#FFF" />
+            <Text style={styles.completeBtnText}>Selesai</Text>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+    );
+  }
+
+  return null;
+};
+
+// Von Restorff Effect Simulation - Card Selection Grid
+const VonRestorffSimulation = ({ colors, onComplete }) => {
+  const [phase, setPhase] = useState('intro'); // intro, countdown, study, recall, result
+  const [countdown, setCountdown] = useState(3);
+  const [distinctivePosition, setDistinctivePosition] = useState(0);
+  const [selectedPosition, setSelectedPosition] = useState(null);
+  const [isCorrect, setIsCorrect] = useState(false);
+  const fadeAnim = useState(new Animated.Value(0))[0];
+  const scaleAnim = useState(new Animated.Value(0))[0];
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 400,
+      useNativeDriver: true,
+    }).start();
+  }, [phase]);
+
+  const startStudy = () => {
+    // Randomly select position for distinctive card (0-8)
+    const randomPos = Math.floor(Math.random() * 9);
+    setDistinctivePosition(randomPos);
+    setSelectedPosition(null);
+    setIsCorrect(false);
+    
+    fadeAnim.setValue(0);
+    setCountdown(3);
+    setPhase('countdown');
+    
+    // Countdown timer
+    let count = 3;
+    const timer = setInterval(() => {
+      count--;
+      if (count > 0) {
+        setCountdown(count);
+      } else {
+        clearInterval(timer);
+        fadeAnim.setValue(0);
+        scaleAnim.setValue(0);
+        setPhase('study');
+        
+        // Show cards for 2 seconds then move to recall
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 8,
+          tension: 40,
+          useNativeDriver: true,
+        }).start();
+        
+        setTimeout(() => {
+          fadeAnim.setValue(0);
+          setPhase('recall');
+        }, 2000);
+      }
+    }, 1000);
+  };
+
+  const handleCardSelect = (position) => {
+    setSelectedPosition(position);
+    const correct = position === distinctivePosition;
+    setIsCorrect(correct);
+    
+    fadeAnim.setValue(0);
+    setTimeout(() => setPhase('result'), 500);
+  };
+
+  // Intro Phase
+  if (phase === 'intro') {
+    return (
+      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
+        <Text style={[styles.simTitle, { color: colors.textPrimary }]}>
+          ⭐ Von Restorff Effect
+        </Text>
+        <Text style={[styles.simDesc, { color: colors.textSecondary }]}>
+          "Item yang berbeda dari sekitarnya lebih mudah diingat." Tes memori visual Anda:{'\n'}
+          {'\n'}👁️ <Text style={{ fontWeight: '600' }}>Lihat: Grid 9 kartu selama 2 detik</Text>
+          {'\n'}💡 <Text style={{ fontWeight: '600' }}>Perhatikan: Satu kartu akan tampak berbeda</Text>
+          {'\n'}🎯 <Text style={{ fontWeight: '600' }}>Pilih: Posisi kartu yang menonjol</Text>
+          {'\n'}{'\n'}📊 Recall rate Anda akan diukur. Hipotesis: Kartu yang berbeda (elevated, shadow, border) akan lebih mudah diingat!
+        </Text>
+        
+        <TouchableOpacity
+          style={[styles.startButton, { backgroundColor: colors.accent }]}
+          onPress={startStudy}
+        >
+          <Text style={styles.startButtonText}>Mulai Visual Test</Text>
+          <Ionicons name="arrow-forward" size={20} color="#FFF" />
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  }
+
+  // Countdown Phase
+  if (phase === 'countdown') {
+    return (
+      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
+        <Text style={[styles.scenarioLabel, { color: colors.accent, backgroundColor: colors.accentSubtle }]}>
+          Get Ready
+        </Text>
+        <Text style={[styles.taskPrompt, { color: colors.textPrimary }]}>
+          Bersiaplah untuk menghafalkan...
+        </Text>
+        
+        <View style={styles.countdownContainer}>
+          <Animated.Text 
+            style={[
+              styles.countdownNumber,
+              { 
+                color: colors.accent,
+                transform: [{ scale: scaleAnim }]
+              }
+            ]}
+          >
+            {countdown}
+          </Animated.Text>
+        </View>
+      </Animated.View>
+    );
+  }
+
+  // Study Phase - Show Grid
+  if (phase === 'study') {
+    return (
+      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
+        <Text style={[styles.scenarioLabel, { color: colors.accent, backgroundColor: colors.accentSubtle }]}>
+          Study Phase - 2 seconds
+        </Text>
+        <Text style={[styles.taskPrompt, { color: colors.textPrimary }]}>
+          👁️ Hafalkan kartu yang menonjol!
+        </Text>
+
+        {/* Card Grid */}
+        <Animated.View 
+          style={[
+            styles.cardGrid,
+            { transform: [{ scale: scaleAnim }] }
+          ]}
+        >
+          {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((position) => {
+            const isDistinctive = position === distinctivePosition;
+            
+            return (
+              <View
+                key={position}
+                style={[
+                  styles.studyCard,
+                  isDistinctive ? styles.studyCardDistinctive : styles.studyCardNormal,
+                  { 
+                    backgroundColor: isDistinctive ? '#FBBF24' : '#F3F4F6',
+                    borderColor: isDistinctive ? '#F59E0B' : '#D1D5DB',
+                  }
+                ]}
+              >
+                <Text style={[styles.cardNumber, { color: isDistinctive ? '#92400E' : '#6B7280' }]}>
+                  {position + 1}
+                </Text>
+              </View>
+            );
+          })}
+        </Animated.View>
+
+        <View style={[styles.timerHint, { backgroundColor: '#FEF3C7', borderColor: '#FCD34D' }]}>
+          <Ionicons name="time-outline" size={20} color="#D97706" />
+          <Text style={[styles.timerHintText, { color: '#92400E' }]}>
+            Kartu akan hilang dalam 2 detik...
+          </Text>
+        </View>
+      </Animated.View>
+    );
+  }
+
+  // Recall Phase - Select Position
+  if (phase === 'recall') {
+    return (
+      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
+        <Text style={[styles.scenarioLabel, { color: '#8B5CF6', backgroundColor: '#EDE9FE' }]}>
+          Recall Phase
+        </Text>
+        <Text style={[styles.taskPrompt, { color: colors.textPrimary }]}>
+          🎯 Posisi mana yang menonjol?
+        </Text>
+
+        {/* Selection Grid */}
+        <View style={styles.cardGrid}>
+          {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((position) => {
+            return (
+              <TouchableOpacity
+                key={position}
+                style={[
+                  styles.recallCard,
+                  { 
+                    backgroundColor: colors.cardBackground,
+                    borderColor: colors.border,
+                  }
+                ]}
+                onPress={() => handleCardSelect(position)}
+              >
+                <Text style={[styles.cardNumber, { color: colors.textPrimary }]}>
+                  {position + 1}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <View style={[styles.instructionBox, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
+          <Ionicons name="information-circle" size={20} color="#3B82F6" />
+          <Text style={[styles.instructionText, { color: '#1E40AF' }]}>
+            Tap pada posisi kartu yang tampak berbeda/menonjol
+          </Text>
+        </View>
+      </Animated.View>
+    );
+  }
+
+  // Result Phase
+  if (phase === 'result') {
+    const recallRate = isCorrect ? 100 : 0;
+
+    return (
+      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
+        <Text style={[styles.resultTitle, { color: colors.textPrimary }]}>
+          📊 Hasil Visual Test
+        </Text>
+
+        {/* Show what was correct */}
+        <View style={[styles.answerBox, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+          <Text style={[styles.answerLabel, { color: colors.textSecondary }]}>
+            Kartu yang menonjol:
+          </Text>
+          <View style={styles.answerComparison}>
+            <View style={styles.answerItem}>
+              <Text style={[styles.answerItemLabel, { color: colors.textSecondary }]}>Posisi Benar:</Text>
+              <View style={[styles.answerCard, { backgroundColor: '#FBBF24', borderColor: '#F59E0B' }]}>
+                <Text style={[styles.answerCardNumber, { color: '#92400E' }]}>
+                  {distinctivePosition + 1}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.answerItem}>
+              <Text style={[styles.answerItemLabel, { color: colors.textSecondary }]}>Pilihan Anda:</Text>
+              <View style={[
+                styles.answerCard, 
+                { 
+                  backgroundColor: isCorrect ? '#DCFCE7' : '#FEE2E2',
+                  borderColor: isCorrect ? '#86EFAC' : '#FCA5A5',
+                }
+              ]}>
+                <Text style={[styles.answerCardNumber, { color: isCorrect ? '#166534' : '#DC2626' }]}>
+                  {selectedPosition !== null ? selectedPosition + 1 : '-'}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Stats Board */}
+        <View style={[styles.statsBoard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              🎯 Your Answer:
+            </Text>
+            <Text style={[styles.statValue, { color: isCorrect ? '#22C55E' : '#EF4444', fontWeight: '700' }]}>
+              Position {selectedPosition !== null ? selectedPosition + 1 : '-'}
+            </Text>
+          </View>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              ✅ Recall Accuracy:
+            </Text>
+            <Text style={[styles.statValue, { color: isCorrect ? '#22C55E' : '#EF4444', fontWeight: '700' }]}>
+              {recallRate}% {isCorrect ? '✓' : '✗'}
+            </Text>
+          </View>
+          
+          <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              ⭐ Distinctive Element:
+            </Text>
+            <Text style={[styles.statValue, { color: '#FBBF24', fontWeight: '700' }]}>
+              Position {distinctivePosition + 1}
+            </Text>
+          </View>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              📊 Von Restorff Confirmed:
+            </Text>
+            <Text style={[styles.statValue, { color: isCorrect ? '#22C55E' : colors.textPrimary, fontWeight: '700' }]}>
+              {isCorrect ? 'Yes! ✓' : 'Not this time'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Insight */}
+        <View style={[styles.resultBox, { backgroundColor: colors.accentSubtle }]}>
+          <Text style={[styles.resultText, { color: colors.accent }]}>
+            ⭐ Von Restorff Effect (Isolation Effect)
+          </Text>
+          <Text style={[styles.resultSubtext, { color: colors.textSecondary }]}>
+            {isCorrect 
+              ? `Tepat! Anda mengingat kartu di posisi ${distinctivePosition + 1} karena tampilannya menonjol (elevated, shadow, warna berbeda). Item yang berbeda dari sekitarnya lebih mudah diingat!`
+              : `Kartu yang menonjol ada di posisi ${distinctivePosition + 1}. Von Restorff Effect menyatakan bahwa item yang berbeda lebih mudah diingat - tapi kadang perlu lebih dari 2 detik untuk efek maksimal.`
+            }
+            {'\n'}{'\n'}
+            Kartu distinctive (kuning, shadow, border tebal, sedikit lebih besar) secara otomatis menarik perhatian dan lebih mudah di-encode ke memori. Ini karena otak kita sangat sensitif terhadap perbedaan visual.
+            {'\n'}{'\n'}
+            💡 <Text style={{ fontWeight: '600' }}>Prinsip Desain:</Text> Gunakan visual distinction (warna kontras, ukuran berbeda, elevation, border) untuk highlight elemen penting: CTA buttons, error messages, notifications, premium features, new badges. Tapi jangan overuse - kalau semua menonjol, tidak ada yang menonjol!
+          </Text>
+          <TouchableOpacity
+            style={[styles.completeBtn, { backgroundColor: '#22C55E' }]}
+            onPress={onComplete}
+          >
+            <Ionicons name="checkmark-circle" size={20} color="#FFF" />
+            <Text style={styles.completeBtnText}>Selesai</Text>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+    );
+  }
+
+  return null;
+};
+
+// Zeigarnik Effect Simulation - Profile Status Widget
+const ZeigarnikSimulation = ({ colors, onComplete }) => {
+  const [phase, setPhase] = useState('intro'); // intro, choice, result
+  const [selectedWidget, setSelectedWidget] = useState(null);
+  const [clickTime, setClickTime] = useState(0);
+  const [startTime, setStartTime] = useState(0);
+  const fadeAnim = useState(new Animated.Value(0))[0];
+  const progressAnim = useState(new Animated.Value(0))[0];
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 400,
+      useNativeDriver: true,
+    }).start();
+  }, [phase]);
+
+  const startChoice = () => {
+    fadeAnim.setValue(0);
+    setSelectedWidget(null);
+    setStartTime(Date.now());
+    setPhase('choice');
+    
+    // Animate progress bar
+    Animated.timing(progressAnim, {
+      toValue: 0.85,
+      duration: 1000,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const handleWidgetSelect = (widget) => {
+    const reactionTime = Date.now() - startTime;
+    setSelectedWidget(widget);
+    setClickTime(reactionTime);
+    
+    fadeAnim.setValue(0);
+    setTimeout(() => setPhase('result'), 300);
+  };
+
+  // Intro Phase
+  if (phase === 'intro') {
+    return (
+      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
+        <Text style={[styles.simTitle, { color: colors.textPrimary }]}>
+          🧠 Zeigarnik Effect
+        </Text>
+        <Text style={[styles.simDesc, { color: colors.textSecondary }]}>
+          "Tugas yang belum selesai menciptakan ketegangan mental dan lebih mudah diingat." Anda akan melihat 2 widget dashboard:{'\n'}
+          {'\n'}✅ <Text style={{ fontWeight: '600' }}>Widget A: "Profile Complete" (100%)</Text>
+          {'\n'}⏳ <Text style={{ fontWeight: '600' }}>Widget B: "Finish Setup" (85% progress)</Text>
+          {'\n'}{'\n'}🤔 <Text style={{ fontWeight: '600' }}>Pertanyaan: Widget mana yang lebih ingin Anda tap?</Text>
+          {'\n'}{'\n'}📊 Preference Anda akan diukur. Hipotesis: Widget B (incomplete) akan lebih compelling karena menciptakan psychological tension!
+        </Text>
+        
+        <TouchableOpacity
+          style={[styles.startButton, { backgroundColor: colors.accent }]}
+          onPress={startChoice}
+        >
+          <Text style={styles.startButtonText}>Lihat Dashboard</Text>
+          <Ionicons name="arrow-forward" size={20} color="#FFF" />
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  }
+
+  // Choice Phase - Show Both Widgets
+  if (phase === 'choice') {
+    return (
+      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
+        <Text style={[styles.scenarioLabel, { color: colors.accent, backgroundColor: colors.accentSubtle }]}>
+          Your Dashboard
+        </Text>
+        <Text style={[styles.taskPrompt, { color: colors.textPrimary }]}>
+          🤔 Widget mana yang lebih compelling?
+        </Text>
+
+        {/* Dashboard Widgets */}
+        <View style={styles.widgetsContainer}>
+          {/* Widget A - Complete */}
+          <TouchableOpacity
+            style={[styles.dashboardWidget, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}
+            onPress={() => handleWidgetSelect('A')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.widgetHeader}>
+              <View style={[styles.widgetIconComplete, { backgroundColor: '#DCFCE7' }]}>
+                <Ionicons name="checkmark-circle" size={32} color="#22C55E" />
+              </View>
+              <View style={styles.widgetInfo}>
+                <Text style={[styles.widgetTitle, { color: colors.textPrimary }]}>
+                  Profile
+                </Text>
+                <Text style={[styles.widgetStatus, { color: '#22C55E' }]}>
+                  Complete
+                </Text>
+              </View>
+            </View>
+            
+            <View style={styles.widgetProgress}>
+              <View style={[styles.progressBarFull, { backgroundColor: '#22C55E' }]}>
+                <View style={styles.progressBarFill} />
+              </View>
+              <Text style={[styles.progressText, { color: '#22C55E' }]}>
+                100%
+              </Text>
+            </View>
+            
+            <View style={[styles.widgetBadge, { backgroundColor: '#DCFCE7' }]}>
+              <Ionicons name="shield-checkmark" size={16} color="#22C55E" />
+              <Text style={[styles.widgetBadgeText, { color: '#166534' }]}>
+                All Done!
+              </Text>
+            </View>
+
+            <Text style={[styles.widgetLabel, { color: colors.textSecondary }]}>
+              Widget A
+            </Text>
+          </TouchableOpacity>
+
+          {/* Widget B - Incomplete (85%) */}
+          <TouchableOpacity
+            style={[styles.dashboardWidget, { backgroundColor: colors.cardBackground, borderColor: '#F59E0B' }]}
+            onPress={() => handleWidgetSelect('B')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.widgetHeader}>
+              <View style={[styles.widgetIconIncomplete, { backgroundColor: '#FEF3C7' }]}>
+                <View style={styles.circularProgress}>
+                  <Animated.View
+                    style={[
+                      styles.circularProgressFill,
+                      {
+                        transform: [{
+                          rotate: progressAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: ['0deg', '306deg'] // 85% of 360deg
+                          })
+                        }]
+                      }
+                    ]}
+                  />
+                  <View style={styles.circularProgressInner}>
+                    <Text style={[styles.circularProgressText, { color: '#D97706' }]}>
+                      85%
+                    </Text>
+                  </View>
+                </View>
+              </View>
+              <View style={styles.widgetInfo}>
+                <Text style={[styles.widgetTitle, { color: colors.textPrimary }]}>
+                  Setup
+                </Text>
+                <Text style={[styles.widgetStatus, { color: '#D97706' }]}>
+                  In Progress
+                </Text>
+              </View>
+            </View>
+            
+            <View style={styles.widgetProgress}>
+              <View style={[styles.progressBarContainer, { backgroundColor: '#FEF3C7' }]}>
+                <Animated.View 
+                  style={[
+                    styles.progressBarFillAnimated,
+                    { 
+                      width: progressAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['0%', '85%']
+                      }),
+                      backgroundColor: '#F59E0B'
+                    }
+                  ]} 
+                />
+              </View>
+              <Text style={[styles.progressText, { color: '#D97706' }]}>
+                85%
+              </Text>
+            </View>
+            
+            <View style={[styles.widgetBadge, { backgroundColor: '#FEF3C7' }]}>
+              <Ionicons name="time-outline" size={16} color="#D97706" />
+              <Text style={[styles.widgetBadgeText, { color: '#92400E' }]}>
+                Finish Setup
+              </Text>
+            </View>
+
+            <Text style={[styles.widgetLabel, { color: colors.textSecondary }]}>
+              Widget B
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={[styles.instructionBox, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
+          <Ionicons name="information-circle" size={20} color="#3B82F6" />
+          <Text style={[styles.instructionText, { color: '#1E40AF' }]}>
+            Tap pada widget yang membuat Anda lebih ingin mengkliknya
+          </Text>
+        </View>
+      </Animated.View>
+    );
+  }
+
+  // Result Phase
+  if (phase === 'result') {
+    const selectedComplete = selectedWidget === 'A';
+    const selectedIncomplete = selectedWidget === 'B';
+    const zeigarnikConfirmed = selectedIncomplete;
+
+    return (
+      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
+        <Text style={[styles.resultTitle, { color: colors.textPrimary }]}>
+          📊 Hasil Preference
+        </Text>
+
+        {/* Choice Visualization */}
+        <View style={[styles.choiceBox, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+          <Text style={[styles.choiceLabel, { color: colors.textSecondary }]}>
+            Pilihan Anda:
+          </Text>
+          <View style={styles.choiceDisplay}>
+            <View style={[
+              styles.choiceCard,
+              selectedComplete && styles.choiceCardSelected,
+              { backgroundColor: selectedComplete ? '#DCFCE7' : '#F9FAFB', borderColor: selectedComplete ? '#22C55E' : '#D1D5DB' }
+            ]}>
+              <Ionicons name="checkmark-circle" size={24} color={selectedComplete ? '#22C55E' : '#9CA3AF'} />
+              <Text style={[styles.choiceCardText, { color: selectedComplete ? '#166534' : '#6B7280' }]}>
+                Widget A
+              </Text>
+              <Text style={[styles.choiceCardSubtext, { color: selectedComplete ? '#15803D' : '#9CA3AF' }]}>
+                Complete
+              </Text>
+            </View>
+            <View style={[
+              styles.choiceCard,
+              selectedIncomplete && styles.choiceCardSelected,
+              { backgroundColor: selectedIncomplete ? '#FEF3C7' : '#F9FAFB', borderColor: selectedIncomplete ? '#F59E0B' : '#D1D5DB' }
+            ]}>
+              <Ionicons name="time-outline" size={24} color={selectedIncomplete ? '#F59E0B' : '#9CA3AF'} />
+              <Text style={[styles.choiceCardText, { color: selectedIncomplete ? '#92400E' : '#6B7280' }]}>
+                Widget B
+              </Text>
+              <Text style={[styles.choiceCardSubtext, { color: selectedIncomplete ? '#D97706' : '#9CA3AF' }]}>
+                85% Progress
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Stats Board */}
+        <View style={[styles.statsBoard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              ⏱️ Reaction Time:
+            </Text>
+            <Text style={[styles.statValue, { color: colors.accent }]}>
+              {(clickTime / 1000).toFixed(2)}s
+            </Text>
+          </View>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              🎯 Your Choice:
+            </Text>
+            <Text style={[styles.statValue, { color: selectedIncomplete ? '#F59E0B' : '#22C55E', fontWeight: '700' }]}>
+              Widget {selectedWidget}
+            </Text>
+          </View>
+          
+          <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              📊 Click-Through Preference:
+            </Text>
+            <Text style={[styles.statValue, { color: colors.textPrimary, fontWeight: '700' }]}>
+              {selectedComplete ? 'Complete (100%)' : 'Incomplete (85%)'}
+            </Text>
+          </View>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              🧠 Zeigarnik Effect:
+            </Text>
+            <Text style={[styles.statValue, { color: zeigarnikConfirmed ? '#22C55E' : colors.textPrimary, fontWeight: '700' }]}>
+              {zeigarnikConfirmed ? 'Confirmed ✓' : 'Not This Time'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Insight */}
+        <View style={[styles.resultBox, { backgroundColor: colors.accentSubtle }]}>
+          <Text style={[styles.resultText, { color: colors.accent }]}>
+            🧠 Zeigarnik Effect
+          </Text>
+          <Text style={[styles.resultSubtext, { color: colors.textSecondary }]}>
+            {zeigarnikConfirmed 
+              ? `Tepat! Anda memilih Widget B (incomplete) karena tugas yang belum selesai menciptakan "psychological tension" - keinginan kuat untuk menyelesaikannya. Progress bar 85% dengan gap membuat otak Anda berpikir "hanya tinggal sedikit lagi!"`
+              : `Anda memilih Widget A (complete). Biasanya mayoritas user lebih tertarik ke incomplete task karena Zeigarnik Effect - tapi setiap orang berbeda! Some people prefer completion over tension.`
+            }
+            {'\n'}{'\n'}
+            Incomplete task (85% progress) lebih memorable dan compelling daripada complete task karena menciptakan "open loop" di otak - kita tidak suka meninggalkan sesuatu unfinished.
+            {'\n'}{'\n'}
+            💡 <Text style={{ fontWeight: '600' }}>Prinsip Desain:</Text> Gunakan progress bars, incomplete profiles, achievement badges, onboarding steps untuk motivasi user complete tasks. LinkedIn "Profile Strength", Duolingo streaks, form progress - semua leverage Zeigarnik Effect. Tapi jangan overuse - too many incomplete tasks = overwhelming!
+          </Text>
+          <TouchableOpacity
+            style={[styles.completeBtn, { backgroundColor: '#22C55E' }]}
+            onPress={onComplete}
+          >
+            <Ionicons name="checkmark-circle" size={20} color="#FFF" />
+            <Text style={styles.completeBtnText}>Selesai</Text>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+    );
+  }
+
+  return null;
+};
+
+// Peak-End Rule Simulation - Task Loading/Completion
+const PeakEndSimulation = ({ colors, onComplete }) => {
+  const [phase, setPhase] = useState('intro'); // intro, scenario_select, loading, rating, result
+  const [selectedScenario, setSelectedScenario] = useState(null);
+  const [progress, setProgress] = useState(0);
+  const [isComplete, setIsComplete] = useState(false);
+  const [userRating, setUserRating] = useState(0);
+  const [ratingA, setRatingA] = useState(0);
+  const [ratingB, setRatingB] = useState(0);
+  const [confetti, setConfetti] = useState([]);
+  const fadeAnim = useState(new Animated.Value(0))[0];
+  const progressAnim = useState(new Animated.Value(0))[0];
+  const confettiAnim = useState(new Animated.Value(0))[0];
+  const celebrateScale = useState(new Animated.Value(0))[0];
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 400,
+      useNativeDriver: true,
+    }).start();
+  }, [phase]);
+
+  const startScenario = (scenario) => {
+    setSelectedScenario(scenario);
+    setProgress(0);
+    setIsComplete(false);
+    setUserRating(0);
+    progressAnim.setValue(0);
+    confettiAnim.setValue(0);
+    celebrateScale.setValue(0);
+    fadeAnim.setValue(0);
+    setPhase('loading');
+    
+    if (scenario === 'A') {
+      // Scenario A: Linear, boring progress
+      Animated.timing(progressAnim, {
+        toValue: 100,
+        duration: 4000,
+        useNativeDriver: false,
+      }).start(() => {
+        setIsComplete(true);
+        setProgress(100);
+        setTimeout(() => {
+          fadeAnim.setValue(0);
+          setPhase('rating');
+        }, 1000);
+      });
+    } else {
+      // Scenario B: Peak-End with tension and celebration
+      // Step 1: Progress to 80% (2 seconds)
+      Animated.timing(progressAnim, {
+        toValue: 80,
+        duration: 2000,
+        useNativeDriver: false,
+      }).start(() => {
+        setProgress(80);
+        // Step 2: Stall at 80% for 2 seconds (tension/peak negative)
+        setTimeout(() => {
+          // Step 3: Quick zoom to 100% (relief)
+          Animated.timing(progressAnim, {
+            toValue: 100,
+            duration: 600,
+            useNativeDriver: false,
+          }).start(() => {
+            setProgress(100);
+            setIsComplete(true);
+            // Step 4: Confetti celebration (peak positive + positive end)
+            generateConfetti();
+            Animated.parallel([
+              Animated.spring(celebrateScale, {
+                toValue: 1,
+                friction: 4,
+                tension: 40,
+                useNativeDriver: true,
+              }),
+              Animated.timing(confettiAnim, {
+                toValue: 1,
+                duration: 1500,
+                useNativeDriver: true,
+              })
+            ]).start();
+            
+            setTimeout(() => {
+              fadeAnim.setValue(0);
+              setPhase('rating');
+            }, 2500);
+          });
+        }, 2000);
+      });
+    }
+
+    // Update progress display
+    const progressInterval = setInterval(() => {
+      progressAnim.addListener(({ value }) => {
+        setProgress(Math.floor(value));
+      });
+    }, 100);
+
+    setTimeout(() => {
+      clearInterval(progressInterval);
+      progressAnim.removeAllListeners();
+    }, 8000);
+  };
+
+  const generateConfetti = () => {
+    const confettiPieces = [];
+    const colors = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#A8E6CF', '#FF8B94', '#C7CEEA'];
+    for (let i = 0; i < 30; i++) {
+      confettiPieces.push({
+        id: i,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        left: Math.random() * SCREEN_WIDTH,
+        delay: Math.random() * 200,
+        rotation: Math.random() * 360,
+      });
+    }
+    setConfetti(confettiPieces);
+  };
+
+  const handleRating = (rating) => {
+    setUserRating(rating);
+    if (selectedScenario === 'A') {
+      setRatingA(rating);
+    } else {
+      setRatingB(rating);
+    }
+    
+    fadeAnim.setValue(0);
+    setTimeout(() => setPhase('result'), 500);
+  };
+
+  const tryOtherScenario = () => {
+    fadeAnim.setValue(0);
+    setPhase('scenario_select');
+  };
+
+  // Intro Phase
+  if (phase === 'intro') {
+    return (
+      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
+        <Text style={[styles.simTitle, { color: colors.textPrimary }]}>
+          🎭 Peak-End Rule
+        </Text>
+        <Text style={[styles.simDesc, { color: colors.textSecondary }]}>
+          "Orang menilai pengalaman berdasarkan puncak (peak) dan akhir (end), bukan rata-rata keseluruhan." Anda akan mengalami 2 skenario loading:{'\n'}
+          {'\n'}📊 <Text style={{ fontWeight: '600' }}>Scenario A: Linear progress yang flat</Text>
+          {'\n'}🎉 <Text style={{ fontWeight: '600' }}>Scenario B: Tension + Celebration ending</Text>
+          {'\n'}{'\n'}Setelah selesai, Anda akan diminta rate satisfaction (1-5 ⭐). Hipotesis: Scenario B dengan "peak moment" dan "celebratory end" akan mendapat rating lebih tinggi, meskipun durasi sama!
+        </Text>
+        
+        <TouchableOpacity
+          style={[styles.startButton, { backgroundColor: colors.accent }]}
+          onPress={() => {
+            fadeAnim.setValue(0);
+            setPhase('scenario_select');
+          }}
+        >
+          <Text style={styles.startButtonText}>Mulai Experience Test</Text>
+          <Ionicons name="arrow-forward" size={20} color="#FFF" />
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  }
+
+  // Scenario Selection Phase
+  if (phase === 'scenario_select') {
+    return (
+      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
+        <Text style={[styles.scenarioLabel, { color: colors.accent, backgroundColor: colors.accentSubtle }]}>
+          Choose Experience
+        </Text>
+        <Text style={[styles.taskPrompt, { color: colors.textPrimary }]}>
+          🎯 Pilih skenario untuk dicoba:
+        </Text>
+
+        <View style={styles.scenarioButtons}>
+          <TouchableOpacity
+            style={[styles.scenarioCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}
+            onPress={() => startScenario('A')}
+          >
+            <View style={[styles.scenarioIcon, { backgroundColor: '#E5E7EB' }]}>
+              <Ionicons name="remove" size={32} color="#6B7280" />
+            </View>
+            <Text style={[styles.scenarioTitle, { color: colors.textPrimary }]}>
+              Scenario A
+            </Text>
+            <Text style={[styles.scenarioDesc, { color: colors.textSecondary }]}>
+              Linear Progress
+            </Text>
+            <View style={[styles.scenarioBadge, { backgroundColor: '#F3F4F6' }]}>
+              <Text style={[styles.scenarioBadgeText, { color: '#6B7280' }]}>
+                Flat Experience
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.scenarioCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}
+            onPress={() => startScenario('B')}
+          >
+            <View style={[styles.scenarioIcon, { backgroundColor: '#FEF3C7' }]}>
+              <Ionicons name="sparkles" size={32} color="#F59E0B" />
+            </View>
+            <Text style={[styles.scenarioTitle, { color: colors.textPrimary }]}>
+              Scenario B
+            </Text>
+            <Text style={[styles.scenarioDesc, { color: colors.textSecondary }]}>
+              Peak-End Design
+            </Text>
+            <View style={[styles.scenarioBadge, { backgroundColor: '#FEF3C7' }]}>
+              <Text style={[styles.scenarioBadgeText, { color: '#92400E' }]}>
+                Tension + Joy
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+    );
+  }
+
+  // Loading Phase
+  if (phase === 'loading') {
+    return (
+      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
+        <Text style={[styles.scenarioLabel, { 
+          color: selectedScenario === 'A' ? '#6B7280' : '#F59E0B',
+          backgroundColor: selectedScenario === 'A' ? '#F3F4F6' : '#FEF3C7'
+        }]}>
+          Scenario {selectedScenario}
+        </Text>
+        <Text style={[styles.taskPrompt, { color: colors.textPrimary }]}>
+          {isComplete ? '✅ Syncing Complete!' : '⏳ Syncing Data...'}
+        </Text>
+
+        {/* Progress Container */}
+        <View style={styles.loadingContainer}>
+          <View style={[styles.progressBarOuter, { backgroundColor: '#E5E7EB' }]}>
+            <Animated.View
+              style={[
+                styles.progressBarInner,
+                {
+                  width: progressAnim.interpolate({
+                    inputRange: [0, 100],
+                    outputRange: ['0%', '100%']
+                  }),
+                  backgroundColor: isComplete ? '#22C55E' : (progress === 80 && selectedScenario === 'B' ? '#F59E0B' : '#3B82F6')
+                }
+              ]}
+            />
+          </View>
+          
+          <Text style={[styles.progressPercentage, { color: colors.textPrimary }]}>
+            {progress}%
+          </Text>
+
+          {/* Stalling message for Scenario B */}
+          {selectedScenario === 'B' && progress === 80 && !isComplete && (
+            <View style={[styles.stallMessage, { backgroundColor: '#FEF3C7', borderColor: '#FCD34D' }]}>
+              <Ionicons name="time-outline" size={20} color="#D97706" />
+              <Text style={[styles.stallText, { color: '#92400E' }]}>
+                Processing final items...
+              </Text>
+            </View>
+          )}
+
+          {/* Completion for Scenario A */}
+          {selectedScenario === 'A' && isComplete && (
+            <View style={[styles.completionSimple, { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }]}>
+              <Ionicons name="checkmark-circle" size={24} color="#22C55E" />
+              <Text style={[styles.completionText, { color: '#166534' }]}>
+                Done
+              </Text>
+            </View>
+          )}
+
+          {/* Celebration for Scenario B */}
+          {selectedScenario === 'B' && isComplete && (
+            <Animated.View style={[
+              styles.completionCelebrate,
+              { 
+                backgroundColor: '#FEF3C7',
+                borderColor: '#FCD34D',
+                transform: [{ scale: celebrateScale }]
+              }
+            ]}>
+              <Ionicons name="trophy" size={32} color="#F59E0B" />
+              <Text style={[styles.completionTitle, { color: '#92400E' }]}>
+                🎉 Success!
+              </Text>
+              <Text style={[styles.completionSubtext, { color: '#D97706' }]}>
+                All data synced perfectly
+              </Text>
+            </Animated.View>
+          )}
+
+          {/* Confetti Animation */}
+          {selectedScenario === 'B' && isComplete && confetti.map((piece) => (
+            <Animated.View
+              key={piece.id}
+              style={[
+                styles.confettiPiece,
+                {
+                  backgroundColor: piece.color,
+                  left: piece.left,
+                  transform: [
+                    {
+                      translateY: confettiAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [-50, SCREEN_HEIGHT]
+                      })
+                    },
+                    {
+                      rotate: `${piece.rotation}deg`
+                    }
+                  ],
+                  opacity: confettiAnim.interpolate({
+                    inputRange: [0, 0.5, 1],
+                    outputRange: [1, 1, 0]
+                  })
+                }
+              ]}
+            />
+          ))}
+        </View>
+
+        <View style={[styles.instructionBox, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
+          <Ionicons name="information-circle" size={20} color="#3B82F6" />
+          <Text style={[styles.instructionText, { color: '#1E40AF' }]}>
+            {isComplete 
+              ? 'Proses selesai! Persiapkan untuk rating experience...'
+              : 'Tunggu hingga proses syncing selesai...'
+            }
+          </Text>
+        </View>
+      </Animated.View>
+    );
+  }
+
+  // Rating Phase
+  if (phase === 'rating') {
+    return (
+      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
+        <Text style={[styles.scenarioLabel, { color: '#8B5CF6', backgroundColor: '#EDE9FE' }]}>
+          Rate Your Experience
+        </Text>
+        <Text style={[styles.taskPrompt, { color: colors.textPrimary }]}>
+          ⭐ Seberapa puas Anda dengan experience ini?
+        </Text>
+
+        <View style={styles.ratingContainer}>
+          <Text style={[styles.ratingPrompt, { color: colors.textSecondary }]}>
+            Scenario {selectedScenario}: {selectedScenario === 'A' ? 'Linear Progress' : 'Peak-End Design'}
+          </Text>
+          
+          <View style={styles.starsContainer}>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <TouchableOpacity
+                key={star}
+                onPress={() => handleRating(star)}
+                style={styles.starButton}
+              >
+                <Ionicons 
+                  name={userRating >= star ? 'star' : 'star-outline'} 
+                  size={48} 
+                  color={userRating >= star ? '#FCD34D' : '#D1D5DB'} 
+                />
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={[styles.ratingLabel, { color: colors.textSecondary }]}>
+            Tap bintang untuk memberikan rating
+          </Text>
+        </View>
+
+        <View style={[styles.instructionBox, { backgroundColor: '#FEF3C7', borderColor: '#FCD34D' }]}>
+          <Ionicons name="bulb-outline" size={20} color="#D97706" />
+          <Text style={[styles.instructionText, { color: '#92400E' }]}>
+            Nilai berdasarkan keseluruhan experience, dari awal hingga akhir
+          </Text>
+        </View>
+      </Animated.View>
+    );
+  }
+
+  // Result Phase
+  if (phase === 'result') {
+    const avgRating = selectedScenario === 'A' ? ratingA : ratingB;
+
+    return (
+      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
+        <Text style={[styles.resultTitle, { color: colors.textPrimary }]}>
+          📊 Hasil Experience Test
+        </Text>
+
+        {/* Rating Display */}
+        <View style={[styles.ratingResultBox, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+          <Text style={[styles.ratingResultLabel, { color: colors.textSecondary }]}>
+            Your Satisfaction Rating:
+          </Text>
+          <View style={styles.ratingResultStars}>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Ionicons 
+                key={star}
+                name={avgRating >= star ? 'star' : 'star-outline'} 
+                size={36} 
+                color={avgRating >= star ? '#FCD34D' : '#D1D5DB'} 
+              />
+            ))}
+          </View>
+          <Text style={[styles.ratingResultValue, { color: colors.accent }]}>
+            {avgRating} / 5 Stars
+          </Text>
+        </View>
+
+        {/* Stats Board */}
+        <View style={[styles.statsBoard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              🎯 Scenario Tested:
+            </Text>
+            <Text style={[styles.statValue, { color: colors.textPrimary, fontWeight: '700' }]}>
+              {selectedScenario} ({selectedScenario === 'A' ? 'Flat' : 'Peak-End'})
+            </Text>
+          </View>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              ⭐ Satisfaction Rating:
+            </Text>
+            <Text style={[styles.statValue, { color: '#F59E0B', fontWeight: '700' }]}>
+              {avgRating} stars
+            </Text>
+          </View>
+          
+          <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              🎭 Peak Moment:
+            </Text>
+            <Text style={[styles.statValue, { color: colors.textPrimary, fontWeight: '700' }]}>
+              {selectedScenario === 'A' ? 'None' : '80% Stall + Confetti'}
+            </Text>
+          </View>
+          <View style={styles.statRow}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              🎉 End Experience:
+            </Text>
+            <Text style={[styles.statValue, { color: colors.textPrimary, fontWeight: '700' }]}>
+              {selectedScenario === 'A' ? '"Done"' : 'Celebration 🎊'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Try Other Scenario */}
+        {((selectedScenario === 'A' && ratingB === 0) || (selectedScenario === 'B' && ratingA === 0)) && (
+          <TouchableOpacity
+            style={[styles.tryOtherButton, { backgroundColor: '#EFF6FF', borderColor: '#3B82F6' }]}
+            onPress={tryOtherScenario}
+          >
+            <Ionicons name="refresh" size={20} color="#3B82F6" />
+            <Text style={[styles.tryOtherText, { color: '#1E40AF' }]}>
+              Coba Scenario {selectedScenario === 'A' ? 'B' : 'A'}
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Comparison (if both tested) */}
+        {ratingA > 0 && ratingB > 0 && (
+          <View style={[styles.comparisonBox, { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }]}>
+            <Text style={[styles.comparisonTitle, { color: '#166534' }]}>
+              📊 Comparison
+            </Text>
+            <View style={styles.comparisonRow}>
+              <Text style={[styles.comparisonLabel, { color: '#15803D' }]}>
+                Scenario A (Flat):
+              </Text>
+              <Text style={[styles.comparisonValue, { color: '#166534' }]}>
+                {ratingA} ⭐
+              </Text>
+            </View>
+            <View style={styles.comparisonRow}>
+              <Text style={[styles.comparisonLabel, { color: '#15803D' }]}>
+                Scenario B (Peak-End):
+              </Text>
+              <Text style={[styles.comparisonValue, { color: '#166534' }]}>
+                {ratingB} ⭐
+              </Text>
+            </View>
+            <Text style={[styles.comparisonDiff, { color: '#166534' }]}>
+              {ratingB > ratingA 
+                ? `Peak-End lebih tinggi ${ratingB - ratingA} bintang! ✓`
+                : ratingB < ratingA
+                  ? `Flat lebih tinggi ${ratingA - ratingB} bintang (unusual!)`
+                  : 'Sama! Setiap orang berbeda.'
+              }
+            </Text>
+          </View>
+        )}
+
+        {/* Insight */}
+        <View style={[styles.resultBox, { backgroundColor: colors.accentSubtle }]}>
+          <Text style={[styles.resultText, { color: colors.accent }]}>
+            🎭 Peak-End Rule (Kahneman)
+          </Text>
+          <Text style={[styles.resultSubtext, { color: colors.textSecondary }]}>
+            Research menunjukkan bahwa orang menilai experience berdasarkan 2 momen kunci: <Text style={{ fontWeight: '600' }}>Peak (momen paling intens)</Text> dan <Text style={{ fontWeight: '600' }}>End (momen terakhir)</Text>, bukan rata-rata keseluruhan!
+            {'\n'}{'\n'}
+            <Text style={{ fontWeight: '600' }}>Scenario A:</Text> Linear, predictable, tidak ada peak moment atau memorable ending → often rated lower despite being "smooth".
+            {'\n'}{'\n'}
+            <Text style={{ fontWeight: '600' }}>Scenario B:</Text> Stall at 80% (tension peak) → Quick completion (relief peak) → Confetti celebration (positive end) → Creates memorable experience despite same/longer duration!
+            {'\n'}{'\n'}
+            💡 <Text style={{ fontWeight: '600' }}>Prinsip Desain:</Text> Design memorable peaks (micro-interactions, animations, surprises) dan positive endings (success states, celebrations, rewards). Upload complete? Show confetti! Form submitted? Celebratory message! Task done? Achievement badge! End positively = remembered positively.
+          </Text>
+          <TouchableOpacity
+            style={[styles.completeBtn, { backgroundColor: '#22C55E' }]}
+            onPress={onComplete}
+          >
+            <Ionicons name="checkmark-circle" size={20} color="#FFF" />
+            <Text style={styles.completeBtnText}>Selesai</Text>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+    );
+  }
+
+  return null;
+};
+
 // Main Simulation Component
 const SimulationComponent = ({ lawId, lawTitle, colors, onComplete }) => {
   const simulationMap = {
@@ -5218,6 +8164,13 @@ const SimulationComponent = ({ lawId, lawTitle, colors, onComplete }) => {
     'law-of-similarity': SimilaritySimulation,
     'law-of-uniform-connectedness': UniformConnectednessSimulation,
     'occams-razor': OccamsRazorSimulation,
+    'parkinsons-law': ParkinsonsLawSimulation,
+    'postel-law': PostelsLawSimulation,
+    'serial-position-effect': SerialPositionSimulation,
+    'teslers-law': TeslersLawSimulation,
+    'von-restorff-effect': VonRestorffSimulation,
+    'zeigarnik-effect': ZeigarnikSimulation,
+    'peak-end-rule': PeakEndSimulation,
   };
 
   const SimComponent = simulationMap[lawId];
@@ -6751,6 +9704,1014 @@ const styles = StyleSheet.create({
     marginTop: 20,
     fontStyle: 'italic',
     textAlign: 'center',
+  },
+  // Parkinson's Law Simulation Styles
+  timerContainer: {
+    marginVertical: 24,
+    padding: 24,
+    borderRadius: 16,
+    borderWidth: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  timerLarge: {
+    fontSize: 64,
+    fontWeight: '900',
+    marginVertical: 8,
+  },
+  timerLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  progressBarContainer: {
+    height: 8,
+    borderRadius: 4,
+    marginBottom: 24,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  typingContainer: {
+    padding: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  typingInput: {
+    fontSize: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 0,
+    minHeight: 50,
+  },
+  counterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  counterText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  completedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  completedText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#22C55E',
+  },
+  referenceBox: {
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  referenceLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  referenceText: {
+    fontSize: 16,
+    fontWeight: '600',
+    fontStyle: 'italic',
+  },
+  // Postel's Law Simulation Styles
+  formCard: {
+    marginTop: 20,
+    padding: 20,
+    borderRadius: 12,
+    borderWidth: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  formGroup: {
+    marginBottom: 16,
+  },
+  formLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  currencyPrefix: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginRight: 8,
+  },
+  currencyInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+  },
+  helperText: {
+    fontSize: 12,
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    backgroundColor: '#FEE2E2',
+    borderRadius: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#DC2626',
+    fontWeight: '600',
+  },
+  successBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    backgroundColor: '#DCFCE7',
+    borderRadius: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+  },
+  successText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#16A34A',
+    fontWeight: '600',
+  },
+  frustrationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: '#FEE2E2',
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  frustrationText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#EF4444',
+  },
+  formatPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 10,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  formatPreviewText: {
+    fontSize: 13,
+    color: '#1E40AF',
+  },
+  hintBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+  },
+  // Serial Position Effect Simulation Styles
+  carouselContainer: {
+    marginVertical: 24,
+    height: 200,
+  },
+  carousel: {
+    flex: 1,
+  },
+  carouselContent: {
+    paddingHorizontal: 8,
+    gap: 16,
+  },
+  fruitCard: {
+    width: 140,
+    height: 180,
+    borderRadius: 16,
+    borderWidth: 2,
+    padding: 16,
+    marginHorizontal: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  fruitIcon: {
+    fontSize: 56,
+    marginBottom: 12,
+  },
+  fruitName: {
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  positionBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  positionText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  instructionBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginTop: 16,
+  },
+  instructionText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+  doneButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 16,
+    borderRadius: 12,
+    marginTop: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  doneButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+  recallGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 20,
+    justifyContent: 'center',
+  },
+  recallCard: {
+    width: (SCREEN_WIDTH - 60) / 2,
+    aspectRatio: 1,
+    borderRadius: 12,
+    borderWidth: 2,
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    position: 'relative',
+  },
+  recallIcon: {
+    fontSize: 48,
+    marginBottom: 8,
+  },
+  recallName: {
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  checkMark: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+  },
+  counterBox: {
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  counterText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  // Tesler's Law Simulation Styles
+  locationForm: {
+    marginTop: 20,
+    padding: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  dropdownSection: {
+    marginBottom: 24,
+  },
+  dropdownLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  dropdownOptions: {
+    gap: 10,
+  },
+  dropdownButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  dropdownButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  tapCounter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 10,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginTop: 16,
+  },
+  tapCounterText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  smartLocationForm: {
+    marginTop: 20,
+    padding: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  gpsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  gpsButtonTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  gpsButtonSubtitle: {
+    fontSize: 12,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+    gap: 12,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+  },
+  dividerText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  searchSection: {
+    marginBottom: 16,
+  },
+  searchLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 10,
+  },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+  },
+  suggestionsBox: {
+    marginTop: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  suggestionText: {
+    fontSize: 14,
+  },
+  selectedLocationBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 16,
+  },
+  selectedLocationText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  // Von Restorff Effect Simulation Styles
+  cardGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 12,
+    marginVertical: 32,
+    paddingHorizontal: 20,
+  },
+  studyCard: {
+    width: (SCREEN_WIDTH - 88) / 3,
+    aspectRatio: 1,
+    borderRadius: 12,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  studyCardNormal: {
+    shadowOpacity: 0.05,
+    elevation: 1,
+  },
+  studyCardDistinctive: {
+    transform: [{ scale: 1.1 }],
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    borderWidth: 3,
+  },
+  recallCard: {
+    width: (SCREEN_WIDTH - 88) / 3,
+    aspectRatio: 1,
+    borderRadius: 12,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  cardNumber: {
+    fontSize: 32,
+    fontWeight: '900',
+  },
+  timerHintBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginTop: 16,
+  },
+  timerHintText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  answerBox: {
+    padding: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  answerLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 16,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  answerComparison: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    gap: 16,
+  },
+  answerItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  answerItemLabel: {
+    fontSize: 12,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  answerCard: {
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    borderWidth: 3,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  answerCardNumber: {
+    fontSize: 36,
+    fontWeight: '900',
+  },
+  // Zeigarnik Effect Simulation Styles
+  widgetsContainer: {
+    gap: 20,
+    marginVertical: 24,
+    paddingHorizontal: 16,
+  },
+  dashboardWidget: {
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    marginBottom: 8,
+  },
+  widgetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 12,
+  },
+  widgetIconComplete: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  widgetIconIncomplete: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  circularProgress: {
+    width: 48,
+    height: 48,
+    position: 'relative',
+  },
+  circularProgressFill: {
+    position: 'absolute',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 5,
+    borderColor: '#F59E0B',
+    borderRightColor: 'transparent',
+    borderBottomColor: 'transparent',
+  },
+  circularProgressInner: {
+    position: 'absolute',
+    width: 48,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  circularProgressText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  widgetInfo: {
+    flex: 1,
+  },
+  widgetTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  widgetStatus: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  widgetProgress: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  progressBarFull: {
+    flex: 1,
+    height: 8,
+    borderRadius: 4,
+  },
+  progressBarContainer: {
+    flex: 1,
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressBarFillAnimated: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  progressText: {
+    fontSize: 14,
+    fontWeight: '700',
+    minWidth: 40,
+  },
+  widgetBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+  },
+  widgetBadgeText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  widgetLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  choiceBox: {
+    padding: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  choiceLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 16,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  choiceDisplay: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  choiceCard: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    alignItems: 'center',
+    gap: 8,
+  },
+  choiceCardSelected: {
+    borderWidth: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  choiceCardText: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  choiceCardSubtext: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  // Peak-End Rule Simulation Styles
+  scenarioButtons: {
+    gap: 16,
+    marginVertical: 24,
+    paddingHorizontal: 16,
+  },
+  scenarioCard: {
+    padding: 24,
+    borderRadius: 16,
+    borderWidth: 2,
+    alignItems: 'center',
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    marginBottom: 8,
+  },
+  scenarioIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  scenarioTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  scenarioDesc: {
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  scenarioBadge: {
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginTop: 4,
+  },
+  scenarioBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  loadingContainer: {
+    marginVertical: 32,
+    paddingHorizontal: 20,
+    position: 'relative',
+  },
+  progressBarOuter: {
+    height: 20,
+    borderRadius: 10,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  progressBarInner: {
+    height: '100%',
+    borderRadius: 10,
+  },
+  progressPercentage: {
+    fontSize: 32,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginVertical: 16,
+  },
+  stallMessage: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    marginTop: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  stallText: {
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
+  },
+  completionSimple: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    marginTop: 20,
+    justifyContent: 'center',
+  },
+  completionText: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  completionCelebrate: {
+    alignItems: 'center',
+    padding: 24,
+    borderRadius: 16,
+    borderWidth: 3,
+    marginTop: 20,
+    gap: 8,
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  completionTitle: {
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  completionSubtext: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  confettiPiece: {
+    position: 'absolute',
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  ratingContainer: {
+    marginVertical: 24,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    gap: 20,
+  },
+  ratingPrompt: {
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  starsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  starButton: {
+    padding: 4,
+  },
+  ratingLabel: {
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  ratingResultBox: {
+    padding: 24,
+    borderRadius: 16,
+    borderWidth: 2,
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  ratingResultLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  ratingResultStars: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  ratingResultValue: {
+    fontSize: 28,
+    fontWeight: '900',
+  },
+  tryOtherButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    marginBottom: 16,
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  tryOtherText: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  comparisonBox: {
+    padding: 20,
+    borderRadius: 12,
+    borderWidth: 2,
+    marginBottom: 16,
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  comparisonTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  comparisonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  comparisonLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  comparisonValue: {
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  comparisonDiff: {
+    fontSize: 14,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#86EFAC',
   },
 });
 
