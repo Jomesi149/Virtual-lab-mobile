@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Switch,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
@@ -37,18 +38,26 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Konfirmasi Keluar',
-      'Apakah Anda yakin ingin keluar dari akun ini?',
-      [
-        { text: 'Batal', style: 'cancel' },
-        {
-          text: 'Keluar',
-          style: 'destructive',
-          onPress: () => logout(),
-        },
-      ]
-    );
+    // Alert.alert tidak berfungsi di web, gunakan confirm untuk web
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Apakah Anda yakin ingin keluar dari akun ini?');
+      if (confirmed) {
+        logout();
+      }
+    } else {
+      Alert.alert(
+        'Konfirmasi Keluar',
+        'Apakah Anda yakin ingin keluar dari akun ini?',
+        [
+          { text: 'Batal', style: 'cancel' },
+          {
+            text: 'Keluar',
+            style: 'destructive',
+            onPress: () => logout(),
+          },
+        ]
+      );
+    }
   };
 
   const getProgressStats = () => {

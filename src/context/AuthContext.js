@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import * as SecureStore from 'expo-secure-store';
-import axiosInstance from '../utils/axios';
+import axiosInstance, { storage } from '../utils/axios';
 
 const AuthContext = createContext(null);
 
@@ -22,8 +21,8 @@ export const AuthProvider = ({ children }) => {
 
   const loadStoredAuth = async () => {
     try {
-      const token = await SecureStore.getItemAsync('token');
-      const userData = await SecureStore.getItemAsync('user');
+      const token = await storage.getItem('token');
+      const userData = await storage.getItem('user');
       
       if (token && userData) {
         setUser(JSON.parse(userData));
@@ -37,15 +36,19 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
+      console.log('Attempting login for:', email);
       const response = await axiosInstance.post('/api/auth/login', { email, password });
+      console.log('Login response:', response.data);
       const { token, user } = response.data;
       
-      await SecureStore.setItemAsync('token', token);
-      await SecureStore.setItemAsync('user', JSON.stringify(user));
+      await storage.setItem('token', token);
+      await storage.setItem('user', JSON.stringify(user));
       
       setUser(user);
       return { success: true };
     } catch (error) {
+      console.error('Login error:', error);
+      console.error('Error response:', error.response?.data);
       return { 
         success: false, 
         message: error.response?.data?.message || 'Login gagal' 
@@ -55,11 +58,13 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (name, email, password) => {
     try {
+      console.log('Attempting register for:', email);
       const response = await axiosInstance.post('/api/auth/register', { name, email, password });
+      console.log('Register response:', response.data);
       const { token, user } = response.data;
       
-      await SecureStore.setItemAsync('token', token);
-      await SecureStore.setItemAsync('user', JSON.stringify(user));
+      await storage.setItem('token', token);
+      await storage.setItem('user', JSON.stringify(user));
       
       setUser(user);
       return { success: true };
@@ -73,8 +78,8 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      await SecureStore.deleteItemAsync('token');
-      await SecureStore.deleteItemAsync('user');
+      await storage.removeItem('token');
+      await storage.removeItem('user');
       setUser(null);
     } catch (error) {
       console.error('Error during logout:', error);
@@ -83,7 +88,7 @@ export const AuthProvider = ({ children }) => {
 
   const updateUser = (userData) => {
     setUser(userData);
-    SecureStore.setItemAsync('user', JSON.stringify(userData));
+    storage.setItem('user', JSON.stringify(userData));
   };
 
   return (
