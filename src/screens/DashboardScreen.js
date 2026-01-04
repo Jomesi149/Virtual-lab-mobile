@@ -77,6 +77,20 @@ export default function DashboardScreen({ navigation }) {
   const totalCount = laws.length;
   const progressPercentage = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
+  // Sort laws: Unfinished first, Completed last
+  const sortedLaws = [...laws].sort((a, b) => {
+    const aCompleted = userProgress[a.id] || false;
+    const bCompleted = userProgress[b.id] || false;
+    
+    // If completion status differs, unfinished (false) comes first
+    if (aCompleted !== bCompleted) {
+      return aCompleted ? 1 : -1;
+    }
+    
+    // If both have same completion status, maintain original order
+    return 0;
+  });
+
   if (loading) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
@@ -129,68 +143,103 @@ export default function DashboardScreen({ navigation }) {
 
           {/* Laws Grid */}
           <View style={styles.lawsContainer}>
-            {laws.map((law) => {
+            {sortedLaws.map((law, index) => {
               const categoryColor = getCategoryColor(law.category);
               const isCompleted = userProgress[law.id];
+              
+              // Check if this is the first completed law (transition point)
+              const prevLaw = index > 0 ? sortedLaws[index - 1] : null;
+              const prevCompleted = prevLaw ? userProgress[prevLaw.id] : false;
+              const isFirstCompleted = isCompleted && !prevCompleted;
+              
+              // Check if this is the first unfinished law
+              const isFirstUnfinished = index === 0 && !isCompleted;
 
               return (
-                <TouchableOpacity
-                  key={law.id}
-                  style={[styles.lawCard, { backgroundColor: colors.surface }]}
-                  onPress={() => navigation.navigate('LawDetail', { lawId: law.id })}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.lawCardHeader}>
-                    <View
-                      style={[styles.categoryBadge, { backgroundColor: categoryColor.bg }]}
-                    >
-                      <Text style={[styles.categoryText, { color: categoryColor.text }]}>
-                        {categoryTranslations[law.category] || law.category}
+                <React.Fragment key={law.id}>
+                  {/* Section Header for Unfinished Laws */}
+                  {isFirstUnfinished && (
+                    <View style={styles.sectionHeader}>
+                      <Ionicons name="flame-outline" size={20} color={colors.accent} />
+                      <Text style={[styles.sectionHeaderText, { color: colors.textPrimary }]}>
+                        Belum Selesai
+                      </Text>
+                      <Text style={[styles.sectionHeaderCount, { color: colors.textSecondary }]}>
+                        ({totalCount - completedCount})
                       </Text>
                     </View>
-                    <View
-                      style={[
-                        styles.statusIcon,
-                        {
-                          backgroundColor: isCompleted ? '#22C55E' : colors.accentSubtle,
-                          borderColor: isCompleted ? '#22C55E' : colors.border,
-                        },
-                      ]}
-                    >
-                      {isCompleted ? (
-                        <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-                      ) : (
-                        <View style={styles.emptyCircle} />
-                      )}
-                    </View>
-                  </View>
-
-                  <View style={styles.lawCardContent}>
-                    <Ionicons
-                      name="book-outline"
-                      size={24}
-                      color={colors.accent}
-                      style={styles.lawIcon}
-                    />
-                    <View style={styles.lawTextContainer}>
-                      <Text style={[styles.lawTitle, { color: colors.textPrimary }]}>
-                        {law.title}
+                  )}
+                  
+                  {/* Section Header for Completed Laws */}
+                  {isFirstCompleted && (
+                    <View style={[styles.sectionHeader, { marginTop: 24 }]}>
+                      <Ionicons name="checkmark-circle-outline" size={20} color="#22C55E" />
+                      <Text style={[styles.sectionHeaderText, { color: colors.textPrimary }]}>
+                        Selesai
                       </Text>
-                      <Text
-                        style={[styles.lawDescription, { color: colors.textSecondary }]}
-                        numberOfLines={3}
+                      <Text style={[styles.sectionHeaderCount, { color: colors.textSecondary }]}>
+                        ({completedCount})
+                      </Text>
+                    </View>
+                  )}
+                  
+                  <TouchableOpacity
+                    style={[styles.lawCard, { backgroundColor: colors.surface }]}
+                    onPress={() => navigation.navigate('LawDetail', { lawId: law.id })}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.lawCardHeader}>
+                      <View
+                        style={[styles.categoryBadge, { backgroundColor: categoryColor.bg }]}
                       >
-                        {law.description}
+                        <Text style={[styles.categoryText, { color: categoryColor.text }]}>
+                          {categoryTranslations[law.category] || law.category}
+                        </Text>
+                      </View>
+                      <View
+                        style={[
+                          styles.statusIcon,
+                          {
+                            backgroundColor: isCompleted ? '#22C55E' : colors.accentSubtle,
+                            borderColor: isCompleted ? '#22C55E' : colors.border,
+                          },
+                        ]}
+                      >
+                        {isCompleted ? (
+                          <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                        ) : (
+                          <View style={styles.emptyCircle} />
+                        )}
+                      </View>
+                    </View>
+
+                    <View style={styles.lawCardContent}>
+                      <Ionicons
+                        name="book-outline"
+                        size={24}
+                        color={colors.accent}
+                        style={styles.lawIcon}
+                      />
+                      <View style={styles.lawTextContainer}>
+                        <Text style={[styles.lawTitle, { color: colors.textPrimary }]}>
+                          {law.title}
+                        </Text>
+                        <Text
+                          style={[styles.lawDescription, { color: colors.textSecondary }]}
+                          numberOfLines={3}
+                        >
+                          {law.description}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={[styles.lawCardFooter, { borderTopColor: colors.border }]}>
+                      <Text style={[styles.learnMore, { color: colors.accent }]}>
+                        Pelajari lebih lanjut →
                       </Text>
                     </View>
-                  </View>
-
-                  <View style={[styles.lawCardFooter, { borderTopColor: colors.border }]}>
-                    <Text style={[styles.learnMore, { color: colors.accent }]}>
-                      Pelajari lebih lanjut →
-                    </Text>
-                  </View>
-                </TouchableOpacity>
+                  </TouchableOpacity>
+                </React.Fragment>
               );
             })}
           </View>
@@ -358,5 +407,20 @@ const styles = StyleSheet.create({
   emptyDescription: {
     fontSize: 14,
     textAlign: 'center',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    marginTop: 8,
+    gap: 8,
+  },
+  sectionHeaderText: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  sectionHeaderCount: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
