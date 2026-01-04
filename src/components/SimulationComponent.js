@@ -519,13 +519,14 @@ const HicksLawSimulation = ({ colors, onComplete }) => {
     ],
   };
 
+  // FIXED: Added scenario to dependencies to trigger fade-in when switching A→B
   useEffect(() => {
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 400,
       useNativeDriver: true,
     }).start();
-  }, [phase, category]); // FIXED: Added category to dependencies
+  }, [phase, category, scenario]);
 
   const startScenario = (scenarioType) => {
     setScenario(scenarioType);
@@ -1278,13 +1279,14 @@ const GoalGradientSimulation = ({ colors, onComplete }) => {
   const SCENARIO_B_START = 3; // Start from step 3 of 12 (25%)
   const SCENARIO_B_TOTAL = 12; // Show as 12 steps total
 
+  // FIXED: Added scenario to dependency array to trigger fade-in on scenario change
   useEffect(() => {
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 400,
       useNativeDriver: true,
     }).start();
-  }, [phase]);
+  }, [phase, scenario]);
 
   useEffect(() => {
     if (scenario) {
@@ -2298,13 +2300,14 @@ const JakobsLawSimulation = ({ colors, onComplete }) => {
   const fadeAnim = useState(new Animated.Value(0))[0];
   const pulseAnim = useState(new Animated.Value(1))[0];
 
+  // FIXED: Added scenario to dependencies to trigger fade-in when switching A→B
   useEffect(() => {
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 400,
       useNativeDriver: true,
     }).start();
-  }, [phase]);
+  }, [phase, scenario]);
 
   useEffect(() => {
     // Pulse animation for cart icons
