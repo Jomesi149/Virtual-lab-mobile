@@ -4732,15 +4732,14 @@ const SimilaritySimulation = ({ colors, onComplete }) => {
 
 // Law of Uniform Connectedness Simulation - Process Stepper
 const UniformConnectednessSimulation = ({ colors, onComplete }) => {
-  const [phase, setPhase] = useState('intro'); // intro, scenarioA, ratingA, scenarioB, ratingB, result
-  const [ratingA, setRatingA] = useState(null); // true = looks like sequence, false = doesn't
+  const [phase, setPhase] = useState('intro');
+  const [ratingA, setRatingA] = useState(null);
   const [ratingB, setRatingB] = useState(null);
-  const [confidenceA, setConfidenceA] = useState(0); // 1-5 rating
+  const [confidenceA, setConfidenceA] = useState(0);
   const [confidenceB, setConfidenceB] = useState(0);
   const fadeAnim = useState(new Animated.Value(0))[0];
   const lineAnim = useState(new Animated.Value(0))[0];
 
-  // Step data
   const steps = [
     { id: 1, icon: 'person-outline', label: 'Account', color: '#3B82F6' },
     { id: 2, icon: 'card-outline', label: 'Payment', color: '#8B5CF6' },
@@ -4748,344 +4747,152 @@ const UniformConnectednessSimulation = ({ colors, onComplete }) => {
   ];
 
   useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 400,
-      useNativeDriver: true,
-    }).start();
+    Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
   }, [phase]);
 
-  const startScenarioA = () => {
-    fadeAnim.setValue(0);
-    setPhase('scenarioA');
-  };
-
+  const startScenarioA = () => { fadeAnim.setValue(0); setPhase('scenarioA'); };
+  
   const startScenarioB = () => {
     fadeAnim.setValue(0);
     lineAnim.setValue(0);
     setPhase('scenarioB');
-    
-    // Animate the connecting line
-    Animated.timing(lineAnim, {
-      toValue: 1,
-      duration: 1000,
-      useNativeDriver: false,
-    }).start();
+    // Animasi garis mengisi dari 0 ke 100%
+    Animated.timing(lineAnim, { toValue: 1, duration: 1000, useNativeDriver: false }).start();
   };
 
-  const handleRatingA = (isSequence) => {
-    setRatingA(isSequence);
-    fadeAnim.setValue(0);
-    setPhase('confidenceA');
-  };
+  const handleRatingA = (val) => { setRatingA(val); fadeAnim.setValue(0); setPhase('confidenceA'); };
+  const handleConfidenceA = (val) => { setConfidenceA(val); fadeAnim.setValue(0); setTimeout(() => startScenarioB(), 300); };
+  
+  const handleRatingB = (val) => { setRatingB(val); fadeAnim.setValue(0); setPhase('confidenceB'); };
+  const handleConfidenceB = (val) => { setConfidenceB(val); fadeAnim.setValue(0); setTimeout(() => setPhase('result'), 300); };
 
-  const handleConfidenceA = (confidence) => {
-    setConfidenceA(confidence);
-    fadeAnim.setValue(0);
-    setTimeout(() => startScenarioB(), 300);
-  };
+  // --- RENDER HELPERS ---
+  const renderIntro = () => (
+    <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
+      <Text style={[styles.simTitle, { color: colors.textPrimary }]}>🔗 Law of Uniform Connectedness</Text>
+      <Text style={[styles.simDesc, { color: colors.textSecondary }]}>
+        Tugas: Nilai apakah langkah-langkah berikut terlihat sebagai satu rangkaian proses yang terhubung.
+      </Text>
+      <TouchableOpacity style={[styles.startButton, { backgroundColor: colors.accent }]} onPress={startScenarioA}>
+        <Text style={styles.startButtonText}>Mulai Evaluasi</Text>
+        <Ionicons name="arrow-forward" size={20} color="#FFF" />
+      </TouchableOpacity>
+    </Animated.View>
+  );
 
-  const handleRatingB = (isSequence) => {
-    setRatingB(isSequence);
-    fadeAnim.setValue(0);
-    setPhase('confidenceB');
-  };
-
-  const handleConfidenceB = (confidence) => {
-    setConfidenceB(confidence);
-    fadeAnim.setValue(0);
-    setTimeout(() => setPhase('result'), 300);
-  };
-
-  // Intro Phase
-  if (phase === 'intro') {
-    return (
-      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
-        <Text style={[styles.simTitle, { color: colors.textPrimary }]}>
-          🔗 Law of Uniform Connectedness
-        </Text>
-        <Text style={[styles.simDesc, { color: colors.textSecondary }]}>
-          Anda akan melihat 2 desain process stepper. Untuk setiap desain:{'\n'}
-          {'\n'}👁️ <Text style={{ fontWeight: '600' }}>Amati tampilan visual step</Text>
-          {'\n'}🤔 <Text style={{ fontWeight: '600' }}>Nilai apakah terlihat seperti satu rangkaian proses</Text>
-          {'\n'}📊 Persepsi Anda akan dianalisis
-          {'\n'}{'\n'}Tidak ada jawaban benar/salah - jawablah sesuai persepsi Anda!
-        </Text>
-        
-        <TouchableOpacity
-          style={[styles.startButton, { backgroundColor: colors.accent }]}
-          onPress={startScenarioA}
-        >
-          <Text style={styles.startButtonText}>Mulai Evaluasi</Text>
-          <Ionicons name="arrow-forward" size={20} color="#FFF" />
-        </TouchableOpacity>
-      </Animated.View>
-    );
-  }
-
-  // Scenario A - Disconnected Steps
+  // SCENARIO A (Disconnected)
+  if (phase === 'intro') return renderIntro();
+  
   if (phase === 'scenarioA') {
     return (
       <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
-        <Text style={[styles.scenarioLabel, { color: colors.accent, backgroundColor: colors.accentSubtle }]}>
-          Desain 1
-        </Text>
-        <Text style={[styles.taskPrompt, { color: colors.textPrimary }]}>
-          Amati desain ini dengan seksama
-        </Text>
-
-        {/* Disconnected Stepper - Just icons with whitespace */}
-        <View style={styles.stepperContainerDisconnected}>
-          {steps.map((step, index) => (
-            <View key={step.id} style={styles.stepDisconnected}>
-              <View style={[styles.stepIconCircle, { backgroundColor: step.color }]}>
-                <Ionicons name={step.icon} size={32} color="#FFFFFF" />
+        <Text style={[styles.scenarioLabel, { color: colors.accent, backgroundColor: colors.accentSubtle }]}>Desain 1</Text>
+        
+        {/* Container Langkah */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 40, paddingHorizontal: 20 }}>
+          {steps.map((step) => (
+            <View key={step.id} style={{ alignItems: 'center', gap: 8, width: 60 }}>
+              <View style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: step.color, justifyContent: 'center', alignItems: 'center' }}>
+                <Ionicons name={step.icon} size={28} color="#FFF" />
               </View>
-              <Text style={[styles.stepLabel, { color: colors.textPrimary }]}>
-                {step.label}
-              </Text>
+              <Text style={{ fontSize: 12, color: colors.textPrimary, textAlign: 'center' }}>{step.label}</Text>
             </View>
           ))}
         </View>
 
-        {/* Rating Question */}
         <View style={styles.ratingSection}>
-          <Text style={[styles.ratingQuestion, { color: colors.textPrimary }]}>
-            Apakah ini terlihat seperti satu rangkaian proses yang terhubung?
-          </Text>
+          <Text style={[styles.ratingQuestion, { color: colors.textPrimary }]}>Terlihat terhubung?</Text>
           <View style={styles.ratingButtons}>
-            <TouchableOpacity
-              style={[styles.ratingButton, { backgroundColor: '#EF4444', borderColor: '#DC2626' }]}
-              onPress={() => handleRatingA(false)}
-            >
-              <Ionicons name="close-circle" size={24} color="#FFF" />
-              <Text style={styles.ratingButtonText}>Tidak</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.ratingButton, { backgroundColor: '#22C55E', borderColor: '#16A34A' }]}
-              onPress={() => handleRatingA(true)}
-            >
-              <Ionicons name="checkmark-circle" size={24} color="#FFF" />
-              <Text style={styles.ratingButtonText}>Ya</Text>
-            </TouchableOpacity>
+            <TouchableOpacity style={[styles.ratingButton, { backgroundColor: '#EF4444' }]} onPress={() => handleRatingA(false)}><Text style={{color:'#fff'}}>Tidak</Text></TouchableOpacity>
+            <TouchableOpacity style={[styles.ratingButton, { backgroundColor: '#22C55E' }]} onPress={() => handleRatingA(true)}><Text style={{color:'#fff'}}>Ya</Text></TouchableOpacity>
           </View>
         </View>
       </Animated.View>
     );
   }
 
-  // Confidence Rating A
-  if (phase === 'confidenceA') {
-    return (
-      <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
-        <Text style={[styles.scenarioLabel, { color: colors.accent, backgroundColor: colors.accentSubtle }]}>
-          Desain 1 - Tingkat Keyakinan
-        </Text>
-        <Text style={[styles.taskPrompt, { color: colors.textPrimary }]}>
-          Seberapa yakin Anda dengan jawaban tersebut?
-        </Text>
-
-        <View style={styles.confidenceSection}>
-          <Text style={[styles.confidenceLabel, { color: colors.textSecondary }]}>
-            1 = Sangat Tidak Yakin | 5 = Sangat Yakin
-          </Text>
-          <View style={styles.confidenceButtons}>
-            {[1, 2, 3, 4, 5].map((conf) => (
-              <TouchableOpacity
-                key={conf}
-                style={[styles.confidenceButton, { backgroundColor: colors.accent, borderColor: colors.accent }]}
-                onPress={() => handleConfidenceA(conf)}
-              >
-                <Text style={styles.confidenceButtonText}>{conf}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      </Animated.View>
-    );
-  }
-
-  // Scenario B - Connected Steps
+  // SCENARIO B (Connected - THE FIX)
   if (phase === 'scenarioB') {
-    const lineWidth = lineAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: ['0%', '100%'],
-    });
+    // Interpolasi lebar: 0% -> 100% dari wadah garis
+    const lineWidth = lineAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
 
     return (
       <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
-        <Text style={[styles.scenarioLabel, { color: '#22C55E', backgroundColor: '#DCFCE7' }]}>
-          Desain 2
-        </Text>
-        <Text style={[styles.taskPrompt, { color: colors.textPrimary }]}>
-          Amati desain ini dengan seksama
-        </Text>
+        <Text style={[styles.scenarioLabel, { color: '#166534', backgroundColor: '#DCFCE7' }]}>Desain 2</Text>
 
-        {/* Connected Stepper - Icons with connecting line */}
-        <View style={styles.stepperContainerConnected}>
-          {/* FIXED: Render line BEFORE steps so it's behind in the DOM */}
-          {/* Animated Connecting Line */}
-          <Animated.View 
-            style={[
-              styles.connectingLine, 
-              { 
-                backgroundColor: colors.accent,
-                width: lineWidth,
-                zIndex: -1, // FIXED: Explicitly behind circles
-              }
-            ]} 
-          />
+        {/* CONTAINER UTAMA (Relative) */}
+        <View style={{ position: 'relative', paddingVertical: 40, paddingHorizontal: 20 }}>
           
-          <View style={styles.stepsRow}>
-            {steps.map((step, index) => (
-              <View key={step.id} style={styles.stepConnected}>
-                <View style={[styles.stepIconCircle, { backgroundColor: step.color, zIndex: 5 }]}>
-                  <Ionicons name={step.icon} size={32} color="#FFFFFF" />
+          {/* === GARIS FIX PRESISI === */}
+          <View style={{
+            position: 'absolute',
+            top: 65,     // (40 padding atas + 25 setengah tinggi icon) = 65. Pas tengah vertikal.
+            left: 20 + 25, // (20 padding kiri container + 25 setengah lebar icon) = 45. Pas tengah icon kiri.
+            right: 20 + 25, // (20 padding kanan container + 25 setengah lebar icon) = 45. Pas tengah icon kanan.
+            height: 4,
+            zIndex: -1,   // Di belakang lingkaran
+          }}>
+            {/* Track Abu-abu */}
+            <View style={{ width: '100%', height: '100%', backgroundColor: '#E5E7EB', position: 'absolute' }} />
+            {/* Progress Berwarna */}
+            <Animated.View style={{ height: '100%', width: lineWidth, backgroundColor: colors.accent }} />
+          </View>
+
+          {/* Steps (Lingkaran) */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            {steps.map((step) => (
+              <View key={step.id} style={{ alignItems: 'center', gap: 8, width: 60 }}>
+                {/* Background Putih di luar lingkaran agar garis tidak terlihat 'menembus' icon jika transparan */}
+                <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
+                    <View style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: step.color, justifyContent: 'center', alignItems: 'center', elevation: 4 }}>
+                        <Ionicons name={step.icon} size={28} color="#FFF" />
+                    </View>
                 </View>
-                <Text style={[styles.stepLabel, { color: colors.textPrimary }]}>
-                  {step.label}
-                </Text>
+                <Text style={{ fontSize: 12, color: colors.textPrimary, textAlign: 'center' }}>{step.label}</Text>
               </View>
             ))}
           </View>
         </View>
 
-        {/* Rating Question */}
         <View style={styles.ratingSection}>
-          <Text style={[styles.ratingQuestion, { color: colors.textPrimary }]}>
-            Apakah ini terlihat seperti satu rangkaian proses yang terhubung?
-          </Text>
+          <Text style={[styles.ratingQuestion, { color: colors.textPrimary }]}>Terlihat terhubung?</Text>
           <View style={styles.ratingButtons}>
-            <TouchableOpacity
-              style={[styles.ratingButton, { backgroundColor: '#EF4444', borderColor: '#DC2626' }]}
-              onPress={() => handleRatingB(false)}
-            >
-              <Ionicons name="close-circle" size={24} color="#FFF" />
-              <Text style={styles.ratingButtonText}>Tidak</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.ratingButton, { backgroundColor: '#22C55E', borderColor: '#16A34A' }]}
-              onPress={() => handleRatingB(true)}
-            >
-              <Ionicons name="checkmark-circle" size={24} color="#FFF" />
-              <Text style={styles.ratingButtonText}>Ya</Text>
-            </TouchableOpacity>
+            <TouchableOpacity style={[styles.ratingButton, { backgroundColor: '#EF4444' }]} onPress={() => handleRatingB(false)}><Text style={{color:'#fff'}}>Tidak</Text></TouchableOpacity>
+            <TouchableOpacity style={[styles.ratingButton, { backgroundColor: '#22C55E' }]} onPress={() => handleRatingB(true)}><Text style={{color:'#fff'}}>Ya</Text></TouchableOpacity>
           </View>
         </View>
       </Animated.View>
     );
   }
 
-  // Confidence Rating B
-  if (phase === 'confidenceB') {
+  // CONFIDENCE & RESULT SCREENS
+  if (phase === 'confidenceA' || phase === 'confidenceB') {
+    const isA = phase === 'confidenceA';
     return (
       <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
-        <Text style={[styles.scenarioLabel, { color: '#22C55E', backgroundColor: '#DCFCE7' }]}>
-          Desain 2 - Tingkat Keyakinan
-        </Text>
-        <Text style={[styles.taskPrompt, { color: colors.textPrimary }]}>
-          Seberapa yakin Anda dengan jawaban tersebut?
-        </Text>
-
-        <View style={styles.confidenceSection}>
-          <Text style={[styles.confidenceLabel, { color: colors.textSecondary }]}>
-            1 = Sangat Tidak Yakin | 5 = Sangat Yakin
-          </Text>
-          <View style={styles.confidenceButtons}>
-            {[1, 2, 3, 4, 5].map((conf) => (
-              <TouchableOpacity
-                key={conf}
-                style={[styles.confidenceButton, { backgroundColor: '#22C55E', borderColor: '#16A34A' }]}
-                onPress={() => handleConfidenceB(conf)}
-              >
-                <Text style={styles.confidenceButtonText}>{conf}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+        <Text style={[styles.taskPrompt, { color: colors.textPrimary }]}>Seberapa yakin Anda?</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 10, marginTop: 20 }}>
+          {[1, 2, 3, 4, 5].map((conf) => (
+            <TouchableOpacity key={conf} style={{ width: 45, height: 45, borderRadius: 25, backgroundColor: isA ? colors.accent : '#22C55E', justifyContent: 'center', alignItems: 'center' }} 
+              onPress={() => isA ? handleConfidenceA(conf) : handleConfidenceB(conf)}>
+              <Text style={{ color: '#FFF', fontWeight: 'bold' }}>{conf}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
       </Animated.View>
     );
   }
 
-  // Result Phase
   if (phase === 'result') {
-    const perceptionA = ratingA ? 'Ya, Terhubung' : 'Tidak Terhubung';
-    const perceptionB = ratingB ? 'Ya, Terhubung' : 'Tidak Terhubung';
-    const improvedPerception = ratingB && !ratingA;
-
     return (
       <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
-        <Text style={[styles.resultTitle, { color: colors.textPrimary }]}>
-          📊 Hasil Evaluasi
-        </Text>
-
-        {/* Stats Board */}
-        <View style={[styles.statsBoard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              👁️ Persepsi Desain 1:
-            </Text>
-            <Text style={[styles.statValue, { color: ratingA ? '#22C55E' : '#EF4444' }]}>
-              {perceptionA}
-            </Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              📊 Tingkat Keyakinan 1:
-            </Text>
-            <Text style={[styles.statValue, { color: colors.accent }]}>
-              {confidenceA}/5
-            </Text>
-          </View>
-          
-          <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              👁️ Persepsi Desain 2:
-            </Text>
-            <Text style={[styles.statValue, { color: ratingB ? '#22C55E' : '#EF4444' }]}>
-              {perceptionB}
-            </Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              📊 Tingkat Keyakinan 2:
-            </Text>
-            <Text style={[styles.statValue, { color: '#22C55E' }]}>
-              {confidenceB}/5
-            </Text>
-          </View>
-
-          <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              🔗 Visual Connection Impact:
-            </Text>
-            <Text style={[styles.statValue, { color: colors.textPrimary, fontWeight: '700' }]}>
-              {improvedPerception ? 'Sangat Berpengaruh' : ratingB === ratingA ? 'Konsisten' : 'Bervariasi'}
-            </Text>
-          </View>
-        </View>
-
-        {/* Insight */}
-        <View style={[styles.resultBox, { backgroundColor: colors.accentSubtle }]}>
-          <Text style={[styles.resultText, { color: colors.accent }]}>
-            🔗 Law of Uniform Connectedness
+        <Text style={[styles.resultTitle, { color: colors.textPrimary }]}>📊 Hasil</Text>
+        <View style={[styles.resultBox, { backgroundColor: colors.accentSubtle, padding: 20, borderRadius: 12 }]}>
+          <Text style={[styles.resultText, { color: colors.accent, fontWeight: 'bold', marginBottom: 10 }]}>Law of Uniform Connectedness</Text>
+          <Text style={[styles.resultSubtext, { color: colors.textSecondary, lineHeight: 20 }]}>
+            Elemen yang terhubung secara visual (garis) dipersepsikan lebih terkait daripada elemen tanpa koneksi.
           </Text>
-          <Text style={[styles.resultSubtext, { color: colors.textSecondary }]}>
-            Elemen yang terhubung secara visual (dengan garis, warna, atau container) dipersepsikan lebih terkait daripada elemen tanpa koneksi visual!
-            {'\n'}{'\n'}
-            {improvedPerception && 'Anda merasakan perbedaan yang signifikan! '}Desain 2 dengan garis penghubung membuat step terlihat lebih jelas sebagai satu rangkaian proses. Prinsip ini lebih kuat daripada proximity atau similarity saja.
-            {'\n'}{'\n'}
-            💡 <Text style={{ fontWeight: '600' }}>Prinsip Desain:</Text> Gunakan elemen visual penghubung (garis, warna background, borders) untuk menunjukkan relasi antara komponen UI. Ini sangat efektif untuk stepper, timeline, dan navigation flow.
-          </Text>
-          <TouchableOpacity
-            style={[styles.completeBtn, { backgroundColor: '#22C55E' }]}
-            onPress={onComplete}
-          >
-            <Ionicons name="checkmark-circle" size={20} color="#FFF" />
+          <TouchableOpacity style={[styles.completeBtn, { backgroundColor: '#22C55E', marginTop: 20 }]} onPress={onComplete}>
             <Text style={styles.completeBtnText}>Selesai</Text>
           </TouchableOpacity>
         </View>
