@@ -8241,7 +8241,7 @@ const VonRestorffSimulation = ({ colors, onComplete }) => {
     setSelectedPosition(null);
     setIsCorrect(false);
     
-    fadeAnim.setValue(0);
+    fadeAnim.setValue(1); // FIXED: Force Opacity 1 (Biar intro gak kedip)
     setCountdown(3);
     setPhase('countdown');
     
@@ -8253,12 +8253,13 @@ const VonRestorffSimulation = ({ colors, onComplete }) => {
         setCountdown(count);
       } else {
         clearInterval(timer);
-        // FIXED: Set fadeAnim to 1 (visible) instead of 0 when entering study phase
-        fadeAnim.setValue(1);
+        
+        // === CRITICAL FIX IS HERE ===
+        fadeAnim.setValue(1); // Force immediate visibility (No Blank Screen!)
         scaleAnim.setValue(0);
         setPhase('study');
         
-        // Show cards for 2 seconds then move to recall
+        // Show cards animation
         Animated.spring(scaleAnim, {
           toValue: 1,
           friction: 8,
@@ -8266,8 +8267,9 @@ const VonRestorffSimulation = ({ colors, onComplete }) => {
           useNativeDriver: true,
         }).start();
         
+        // Wait 2 seconds then hide
         setTimeout(() => {
-          fadeAnim.setValue(0);
+          fadeAnim.setValue(0); // Fade out before switching
           setPhase('recall');
         }, 2000);
       }
@@ -8321,29 +8323,21 @@ const VonRestorffSimulation = ({ colors, onComplete }) => {
         </Text>
         
         <View style={styles.countdownContainer}>
-          <Animated.Text 
-            style={[
-              styles.countdownNumber,
-              { 
-                color: colors.accent,
-                transform: [{ scale: scaleAnim }]
-              }
-            ]}
-          >
+          <Text style={[styles.countdownNumber, { color: colors.accent, fontSize: 80 }]}>
             {countdown}
-          </Animated.Text>
+          </Text>
         </View>
       </Animated.View>
     );
   }
 
-  // Study Phase - Show Grid - FIXED: Improved rendering
+  // Study Phase - Show Grid
   if (phase === 'study') {
     return (
       <Animated.View style={[styles.simContainer, { 
-        opacity: fadeAnim,
-        flex: 1,                    // FIXED: Ensure container has height
-        minHeight: 500,             // FIXED: Prevent container collapse
+        opacity: fadeAnim, // This is now forced to 1 at start
+        flex: 1,
+        minHeight: 500,
       }]}>
         <Text style={[styles.scenarioLabel, { color: colors.accent, backgroundColor: colors.accentSubtle }]}>
           Study Phase - 2 seconds
@@ -8352,12 +8346,12 @@ const VonRestorffSimulation = ({ colors, onComplete }) => {
           👁️ Hafalkan kartu yang menonjol!
         </Text>
 
-        {/* Card Grid - FIXED: Added container wrapper for better layout */}
+        {/* Card Grid */}
         <View style={{ 
           flex: 1, 
-          justifyContent: 'center',  // FIXED: Center cards vertically
-          alignItems: 'center',      // FIXED: Center cards horizontally
-          minHeight: 400,            // FIXED: Ensure grid has space
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: 400,
         }}>
           <Animated.View 
             style={[
@@ -8877,18 +8871,22 @@ const PeakEndSimulation = ({ colors, onComplete }) => {
   const [selectedScenario, setSelectedScenario] = useState(null);
   const [progress, setProgress] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
-  const [userRating, setUserRating] = useState(0);
+  
+  const [userRating, setUserRating] = useState(0); // Rating sementara saat ini
   const [ratingA, setRatingA] = useState(0);
   const [ratingB, setRatingB] = useState(0);
+  
   const [confetti, setConfetti] = useState([]);
+  
+  // Animations
   const fadeAnim = useState(new Animated.Value(0))[0];
   const progressAnim = useState(new Animated.Value(0))[0];
   const confettiAnim = useState(new Animated.Value(0))[0];
   const celebrateScale = useState(new Animated.Value(0))[0];
 
   useEffect(() => {
-    // FIXED: Ensure fade animation runs for all phase changes
-    if (phase !== 'loading') {  // Loading phase handles its own animations
+    if (phase !== 'loading') {
+      fadeAnim.setValue(0);
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 400,
@@ -8901,93 +8899,73 @@ const PeakEndSimulation = ({ colors, onComplete }) => {
     setSelectedScenario(scenario);
     setProgress(0);
     setIsComplete(false);
-    setUserRating(0);
+    setUserRating(0); 
+    
+    // Reset nilai animasi
     progressAnim.setValue(0);
     confettiAnim.setValue(0);
     celebrateScale.setValue(0);
-    fadeAnim.setValue(0);
+    
+    fadeAnim.setValue(1); 
     setPhase('loading');
     
     if (scenario === 'A') {
-      // Scenario A: Linear, boring progress
+      // Linear
       Animated.timing(progressAnim, {
         toValue: 100,
         duration: 4000,
         useNativeDriver: false,
       }).start(() => {
-        setIsComplete(true);
-        setProgress(100);
-        setTimeout(() => {
-          fadeAnim.setValue(0);
-          setPhase('rating');
-        }, 1000);
+        finishLoadingSequence(false);
       });
     } else {
-      // Scenario B: Peak-End with tension and celebration
-      // Step 1: Progress to 80% (2 seconds)
-      Animated.timing(progressAnim, {
-        toValue: 80,
-        duration: 2000,
-        useNativeDriver: false,
-      }).start(() => {
-        setProgress(80);
-        // Step 2: Stall at 80% for 2 seconds (tension/peak negative)
-        setTimeout(() => {
-          // Step 3: Quick zoom to 100% (relief)
-          Animated.timing(progressAnim, {
-            toValue: 100,
-            duration: 600,
-            useNativeDriver: false,
-          }).start(() => {
-            setProgress(100);
-            setIsComplete(true);
-            // Step 4: Confetti celebration (peak positive + positive end)
-            generateConfetti();
-            Animated.parallel([
-              Animated.spring(celebrateScale, {
-                toValue: 1,
-                friction: 4,
-                tension: 40,
-                useNativeDriver: true,
-              }),
-              Animated.timing(confettiAnim, {
-                toValue: 1,
-                duration: 1500,
-                useNativeDriver: true,
-              })
-            ]).start();
-            
-            setTimeout(() => {
-              fadeAnim.setValue(0);
-              setPhase('rating');
-            }, 2500);
-          });
-        }, 2000);
+      // Peak-End (Tension + Celebration)
+      Animated.sequence([
+        Animated.timing(progressAnim, { toValue: 80, duration: 2000, useNativeDriver: false }), // Cepat ke 80
+        Animated.delay(2000), // Macet (Tension)
+        Animated.timing(progressAnim, { toValue: 100, duration: 600, useNativeDriver: false }), // Cepat selesai
+      ]).start(() => {
+        finishLoadingSequence(true);
       });
     }
 
-    // Update progress display
-    const progressInterval = setInterval(() => {
-      progressAnim.addListener(({ value }) => {
-        setProgress(Math.floor(value));
-      });
-    }, 100);
+    const progressListener = progressAnim.addListener(({ value }) => {
+      setProgress(Math.floor(value));
+    });
+    return () => progressAnim.removeListener(progressListener);
+  };
 
-    setTimeout(() => {
-      clearInterval(progressInterval);
-      progressAnim.removeAllListeners();
-    }, 8000);
+  const finishLoadingSequence = (withCelebration) => {
+    setIsComplete(true);
+    setProgress(100);
+
+    if (withCelebration) {
+      generateConfetti();
+      Animated.parallel([
+        Animated.spring(celebrateScale, { toValue: 1, friction: 4, tension: 40, useNativeDriver: true }),
+        Animated.timing(confettiAnim, { toValue: 1, duration: 1500, useNativeDriver: true })
+      ]).start();
+      
+      setTimeout(() => {
+        fadeAnim.setValue(0);
+        setPhase('rating');
+      }, 2500);
+    } else {
+      setTimeout(() => {
+        fadeAnim.setValue(0);
+        setPhase('rating');
+      }, 1000);
+    }
   };
 
   const generateConfetti = () => {
     const confettiPieces = [];
-    const colors = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#A8E6CF', '#FF8B94', '#C7CEEA'];
+    const colorsList = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#A8E6CF', '#FF8B94', '#C7CEEA'];
     for (let i = 0; i < 30; i++) {
       confettiPieces.push({
         id: i,
-        color: colors[Math.floor(Math.random() * colors.length)],
-        left: Math.random() * SCREEN_WIDTH,
-        delay: Math.random() * 200,
+        color: colorsList[Math.floor(Math.random() * colorsList.length)],
+        left: Math.random() * 300, // Asumsi lebar layar aman
         rotation: Math.random() * 360,
       });
     }
@@ -8995,18 +8973,28 @@ const PeakEndSimulation = ({ colors, onComplete }) => {
   };
 
   const handleRating = (rating) => {
-    setUserRating(rating);
+    setUserRating(rating); 
+
     if (selectedScenario === 'A') {
       setRatingA(rating);
     } else {
       setRatingB(rating);
     }
     
-    // FIXED: Properly transition to result phase with fade animation
-    fadeAnim.setValue(0);
+    fadeAnim.setValue(0); 
+    
     setTimeout(() => {
-      setPhase('result');
-      // FIXED: Immediately animate to visible after phase change
+      // kedua skenario udahan?
+      const isADone = selectedScenario === 'A' ? true : ratingA > 0;
+      const isBDone = selectedScenario === 'B' ? true : ratingB > 0;
+
+      if (isADone && isBDone) { //sudah selesai
+        setPhase('result');
+      } else {
+        // Jika baru satu 
+        setPhase('scenario_select');
+      }
+
       setTimeout(() => {
         Animated.timing(fadeAnim, {
           toValue: 1,
@@ -9014,7 +9002,8 @@ const PeakEndSimulation = ({ colors, onComplete }) => {
           useNativeDriver: true,
         }).start();
       }, 50);
-    }, 500);
+
+    }, 500); 
   };
 
   const tryOtherScenario = () => {
@@ -9022,7 +9011,6 @@ const PeakEndSimulation = ({ colors, onComplete }) => {
     setPhase('scenario_select');
   };
 
-  // Intro Phase
   if (phase === 'intro') {
     return (
       <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
@@ -9050,7 +9038,6 @@ const PeakEndSimulation = ({ colors, onComplete }) => {
     );
   }
 
-  // Scenario Selection Phase
   if (phase === 'scenario_select') {
     return (
       <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
@@ -9063,50 +9050,65 @@ const PeakEndSimulation = ({ colors, onComplete }) => {
 
         <View style={styles.scenarioButtons}>
           <TouchableOpacity
-            style={[styles.scenarioCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}
+            style={[
+                styles.scenarioCard, 
+                { 
+                    backgroundColor: colors.cardBackground, 
+                    borderColor: colors.border,
+                    opacity: ratingA > 0 ? 0.6 : 1 // Redupkan jika sudah selesai
+                }
+            ]}
             onPress={() => startScenario('A')}
+            disabled={ratingA > 0} // Disable jika sudah selesai
           >
             <View style={[styles.scenarioIcon, { backgroundColor: '#E5E7EB' }]}>
-              <Ionicons name="remove" size={32} color="#6B7280" />
+              {ratingA > 0 ? <Ionicons name="checkmark" size={32} color="green" /> : <Ionicons name="remove" size={32} color="#6B7280" />}
             </View>
             <Text style={[styles.scenarioTitle, { color: colors.textPrimary }]}>
-              Scenario A
+              Scenario A {ratingA > 0 && '(Selesai)'}
             </Text>
             <Text style={[styles.scenarioDesc, { color: colors.textSecondary }]}>
               Linear Progress
             </Text>
-            <View style={[styles.scenarioBadge, { backgroundColor: '#F3F4F6' }]}>
-              <Text style={[styles.scenarioBadgeText, { color: '#6B7280' }]}>
-                Flat Experience
-              </Text>
-            </View>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.scenarioCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}
+            style={[
+                styles.scenarioCard, 
+                { 
+                    backgroundColor: colors.cardBackground, 
+                    borderColor: colors.border,
+                    opacity: ratingB > 0 ? 0.6 : 1 // Redupkan jika sudah selesai
+                }
+            ]}
             onPress={() => startScenario('B')}
+            disabled={ratingB > 0} 
           >
             <View style={[styles.scenarioIcon, { backgroundColor: '#FEF3C7' }]}>
-              <Ionicons name="sparkles" size={32} color="#F59E0B" />
+               {ratingB > 0 ? <Ionicons name="checkmark" size={32} color="green" /> : <Ionicons name="sparkles" size={32} color="#F59E0B" />}
             </View>
             <Text style={[styles.scenarioTitle, { color: colors.textPrimary }]}>
-              Scenario B
+              Scenario B {ratingB > 0 && '(Selesai)'}
             </Text>
             <Text style={[styles.scenarioDesc, { color: colors.textSecondary }]}>
               Peak-End Design
             </Text>
-            <View style={[styles.scenarioBadge, { backgroundColor: '#FEF3C7' }]}>
-              <Text style={[styles.scenarioBadgeText, { color: '#92400E' }]}>
-                Tension + Joy
-              </Text>
-            </View>
           </TouchableOpacity>
         </View>
+
+        {ratingA > 0 && ratingB > 0 && (
+            <TouchableOpacity 
+                style={[styles.startButton, { marginTop: 20, backgroundColor: '#22C55E' }]} 
+                onPress={() => setPhase('result')}
+            >
+                <Text style={styles.startButtonText}>Lihat Hasil Akhir</Text>
+            </TouchableOpacity>
+        )}
+
       </Animated.View>
     );
   }
 
-  // Loading Phase
   if (phase === 'loading') {
     return (
       <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
@@ -9122,16 +9124,25 @@ const PeakEndSimulation = ({ colors, onComplete }) => {
 
         {/* Progress Container */}
         <View style={styles.loadingContainer}>
-          <View style={[styles.progressBarOuter, { backgroundColor: '#E5E7EB' }]}>
+          <View style={[styles.progressBarOuter, { 
+            backgroundColor: '#E5E7EB',
+            height: 20,
+            borderRadius: 10,
+            overflow: 'hidden',
+            borderWidth: 1,
+            borderColor: '#D1D5DB'
+          }]}>
             <Animated.View
               style={[
                 styles.progressBarInner,
                 {
+                  height: '100%',
                   width: progressAnim.interpolate({
                     inputRange: [0, 100],
                     outputRange: ['0%', '100%']
                   }),
-                  backgroundColor: isComplete ? '#22C55E' : (progress === 80 && selectedScenario === 'B' ? '#F59E0B' : '#3B82F6')
+                  backgroundColor: isComplete ? '#22C55E' : (progress === 80 && selectedScenario === 'B' ? '#F59E0B' : '#3B82F6'),
+                  borderRadius: 10
                 }
               ]}
             />
@@ -9194,7 +9205,7 @@ const PeakEndSimulation = ({ colors, onComplete }) => {
                     {
                       translateY: confettiAnim.interpolate({
                         inputRange: [0, 1],
-                        outputRange: [-50, SCREEN_HEIGHT]
+                        outputRange: [-50, 600] // Asumsi tinggi layar
                       })
                     },
                     {
@@ -9224,7 +9235,7 @@ const PeakEndSimulation = ({ colors, onComplete }) => {
     );
   }
 
-  // Rating Phase
+  // Rating 
   if (phase === 'rating') {
     return (
       <Animated.View style={[styles.simContainer, { opacity: fadeAnim }]}>
@@ -9271,67 +9282,37 @@ const PeakEndSimulation = ({ colors, onComplete }) => {
     );
   }
 
-  // Result Phase - FIXED: Added safety for rendering
+  // Result Phase
   if (phase === 'result') {
-    // FIXED: Ensure we have a valid rating, fallback to userRating if needed
-    const avgRating = selectedScenario === 'A' 
-      ? (ratingA || userRating) 
-      : (ratingB || userRating);
+    const highlightRating = selectedScenario === 'B' ? ratingB : ratingA;
 
     return (
       <Animated.View style={[styles.simContainer, { 
         opacity: fadeAnim,
-        flex: 1,                    // FIXED: Ensure container has height
-        minHeight: 500,             // FIXED: Prevent container collapse
-        backgroundColor: colors.background || '#FFFFFF',  // FIXED: Ensure visible background
+        flex: 1,
+        minHeight: 500,
+        backgroundColor: colors.background || '#FFFFFF',
       }]}>
         <Text style={[styles.resultTitle, { color: colors.textPrimary }]}>
           📊 Hasil Experience Test
         </Text>
 
-        {/* Rating Display */}
-        <View style={[styles.ratingResultBox, { 
-          backgroundColor: colors.cardBackground || '#F9FAFB',  // FIXED: Fallback background
-          borderColor: colors.border || '#D1D5DB',
-          borderWidth: 2,
-          borderRadius: 12,
-          padding: 16,
-          marginBottom: 16,
-        }]}>
-          <Text style={[styles.ratingResultLabel, { color: colors.textSecondary }]}>
-            Your Satisfaction Rating:
-          </Text>
-          <View style={styles.ratingResultStars}>
-            {[1, 2, 3, 4, 5].map((star) => (
-              <Ionicons 
-                key={star}
-                name={avgRating >= star ? 'star' : 'star-outline'} 
-                size={36} 
-                color={avgRating >= star ? '#FCD34D' : '#D1D5DB'} 
-              />
-            ))}
-          </View>
-          <Text style={[styles.ratingResultValue, { color: colors.accent || '#3B82F6' }]}>
-            {avgRating} / 5 Stars
-          </Text>
-        </View>
-
         {/* Stats Board */}
         <View style={[styles.statsBoard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
           <View style={styles.statRow}>
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              🎯 Scenario Tested:
+              🎯 Scenario A (Flat):
             </Text>
-            <Text style={[styles.statValue, { color: colors.textPrimary, fontWeight: '700' }]}>
-              {selectedScenario} ({selectedScenario === 'A' ? 'Flat' : 'Peak-End'})
+            <Text style={[styles.statValue, { color: '#3B82F6', fontWeight: '700' }]}>
+              {ratingA} Stars
             </Text>
           </View>
           <View style={styles.statRow}>
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              ⭐ Satisfaction Rating:
+              ⭐ Scenario B (Peak-End):
             </Text>
             <Text style={[styles.statValue, { color: '#F59E0B', fontWeight: '700' }]}>
-              {avgRating} stars
+              {ratingB} Stars
             </Text>
           </View>
           
@@ -9342,7 +9323,7 @@ const PeakEndSimulation = ({ colors, onComplete }) => {
               🎭 Peak Moment:
             </Text>
             <Text style={[styles.statValue, { color: colors.textPrimary, fontWeight: '700' }]}>
-              {selectedScenario === 'A' ? 'None' : '80% Stall + Confetti'}
+              {ratingB > ratingA ? 'Works!' : 'User Preference'}
             </Text>
           </View>
           <View style={styles.statRow}>
@@ -9350,23 +9331,10 @@ const PeakEndSimulation = ({ colors, onComplete }) => {
               🎉 End Experience:
             </Text>
             <Text style={[styles.statValue, { color: colors.textPrimary, fontWeight: '700' }]}>
-              {selectedScenario === 'A' ? '"Done"' : 'Celebration 🎊'}
+              Celebration Effect
             </Text>
           </View>
         </View>
-
-        {/* Try Other Scenario */}
-        {((selectedScenario === 'A' && ratingB === 0) || (selectedScenario === 'B' && ratingA === 0)) && (
-          <TouchableOpacity
-            style={[styles.tryOtherButton, { backgroundColor: '#EFF6FF', borderColor: '#3B82F6' }]}
-            onPress={tryOtherScenario}
-          >
-            <Ionicons name="refresh" size={20} color="#3B82F6" />
-            <Text style={[styles.tryOtherText, { color: '#1E40AF' }]}>
-              Coba Scenario {selectedScenario === 'A' ? 'B' : 'A'}
-            </Text>
-          </TouchableOpacity>
-        )}
 
         {/* Comparison (if both tested) */}
         {ratingA > 0 && ratingB > 0 && (
@@ -9374,28 +9342,12 @@ const PeakEndSimulation = ({ colors, onComplete }) => {
             <Text style={[styles.comparisonTitle, { color: '#166534' }]}>
               📊 Comparison
             </Text>
-            <View style={styles.comparisonRow}>
-              <Text style={[styles.comparisonLabel, { color: '#15803D' }]}>
-                Scenario A (Flat):
-              </Text>
-              <Text style={[styles.comparisonValue, { color: '#166534' }]}>
-                {ratingA} ⭐
-              </Text>
-            </View>
-            <View style={styles.comparisonRow}>
-              <Text style={[styles.comparisonLabel, { color: '#15803D' }]}>
-                Scenario B (Peak-End):
-              </Text>
-              <Text style={[styles.comparisonValue, { color: '#166534' }]}>
-                {ratingB} ⭐
-              </Text>
-            </View>
             <Text style={[styles.comparisonDiff, { color: '#166534' }]}>
               {ratingB > ratingA 
                 ? `Peak-End lebih tinggi ${ratingB - ratingA} bintang! ✓`
                 : ratingB < ratingA
-                  ? `Flat lebih tinggi ${ratingA - ratingB} bintang (unusual!)`
-                  : 'Sama! Setiap orang berbeda.'
+                  ? `Flat lebih tinggi ${ratingA - ratingB} bintang (preferensi unik!)`
+                  : 'Sama! Anda objektif dalam menilai durasi.'
               }
             </Text>
           </View>
@@ -9413,7 +9365,7 @@ const PeakEndSimulation = ({ colors, onComplete }) => {
             {'\n'}{'\n'}
             <Text style={{ fontWeight: '600' }}>Scenario B:</Text> Stall at 80% (tension peak) → Quick completion (relief peak) → Confetti celebration (positive end) → Creates memorable experience despite same/longer duration!
             {'\n'}{'\n'}
-            💡 <Text style={{ fontWeight: '600' }}>Prinsip Desain:</Text> Design memorable peaks (micro-interactions, animations, surprises) dan positive endings (success states, celebrations, rewards). Upload complete? Show confetti! Form submitted? Celebratory message! Task done? Achievement badge! End positively = remembered positively.
+            💡 <Text style={{ fontWeight: '600' }}>Prinsip Desain:</Text> Design memorable peaks dan positive endings. Upload complete? Show confetti!
           </Text>
           <TouchableOpacity
             style={[styles.completeBtn, { backgroundColor: '#22C55E' }]}
