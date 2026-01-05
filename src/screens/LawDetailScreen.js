@@ -8,11 +8,12 @@ import {
   SafeAreaView,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import axiosInstance from '../utils/axios';
-import { getIndonesianLaw } from '../data/uxLawsIndo';
+import { getIndonesianLaw, uxLawsIndo } from '../data/uxLawsIndo';
 import SimulationComponent from '../components/SimulationComponent';
 
 export default function LawDetailScreen({ route, navigation }) {
@@ -53,7 +54,16 @@ export default function LawDetailScreen({ route, navigation }) {
       setIsCompleted(progress[lawId] || false);
     } catch (error) {
       console.error('Error fetching law:', error);
-      Alert.alert('Error', 'Gagal memuat data. Silakan coba lagi.');
+      // Fallback ke data lokal jika API gagal
+      console.log('Using local fallback data for law:', lawId);
+      const localLaw = uxLawsIndo[lawId];
+      if (localLaw) {
+        setLaw({
+          id: lawId,
+          ...localLaw,
+          category: 'cognitive', // default category
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -66,10 +76,22 @@ export default function LawDetailScreen({ route, navigation }) {
       });
       setIsCompleted(true);
       setShowSimulation(false);
-      Alert.alert('Berhasil!', 'UX Law ini telah ditandai sebagai selesai.');
+      // Alert berbeda untuk web dan mobile
+      if (Platform.OS === 'web') {
+        window.alert('UX Law ini telah ditandai sebagai selesai.');
+      } else {
+        Alert.alert('Berhasil!', 'UX Law ini telah ditandai sebagai selesai.');
+      }
     } catch (error) {
       console.error('Error marking complete:', error);
-      Alert.alert('Error', 'Gagal menandai selesai. Silakan coba lagi.');
+      // Untuk web, langsung mark sebagai complete di UI saja (tanpa sync ke server)
+      if (Platform.OS === 'web') {
+        setIsCompleted(true);
+        setShowSimulation(false);
+        window.alert('Ditandai selesai (offline mode)');
+      } else {
+        Alert.alert('Error', 'Gagal menandai selesai. Silakan coba lagi.');
+      }
     }
   };
 
