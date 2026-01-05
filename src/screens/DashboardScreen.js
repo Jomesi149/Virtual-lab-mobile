@@ -13,7 +13,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import axiosInstance from '../utils/axios';
-import { getIndonesianLaw, categoryTranslations } from '../data/uxLawsIndo';
+import { getIndonesianLaw, categoryTranslations, uxLawsIndo } from '../data/uxLawsIndo';
+
+// Fallback data lokal jika API gagal
+const getLocalLaws = () => {
+  const categories = ['cognitive', 'perception', 'interaction', 'behavior'];
+  const lawIds = Object.keys(uxLawsIndo);
+  
+  return lawIds.map((id, index) => ({
+    id,
+    ...uxLawsIndo[id],
+    category: categories[index % categories.length],
+  }));
+};
 
 export default function DashboardScreen({ navigation }) {
   const { colors, isDark } = useTheme();
@@ -52,6 +64,11 @@ export default function DashboardScreen({ navigation }) {
       setUserProgress(progressObj);
     } catch (error) {
       console.error('Error fetching data:', error);
+      // Fallback ke data lokal jika API gagal (CORS atau network error)
+      console.log('Using local fallback data...');
+      const localLaws = getLocalLaws();
+      setLaws(localLaws);
+      setUserProgress({});
     } finally {
       setLoading(false);
       setRefreshing(false);
