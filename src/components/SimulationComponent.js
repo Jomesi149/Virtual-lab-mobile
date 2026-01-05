@@ -841,67 +841,81 @@ const FittsLawSimulation = ({ colors, onComplete }) => {
   const [phase, setPhase] = useState('intro'); // intro, round1, round2, result
   const [round, setRound] = useState(0);
   const [tapCount, setTapCount] = useState(0);
-  const [targetPosition, setTargetPosition] = useState({ x: 0, y: 0 });
-  const [lastTapPosition, setLastTapPosition] = useState({ x: 0, y: 0 });
+  const [targetPosition, setTargetPosition] = useState({ x: 50, y: 50 });
   const [lastTapTime, setLastTapTime] = useState(0);
   const [movementTimes, setMovementTimes] = useState({ round1: [], round2: [] });
   const [errors, setErrors] = useState({ round1: 0, round2: 0 });
+  const [gameAreaSize, setGameAreaSize] = useState({ width: 300, height: 400 });
   const fadeAnim = useState(new Animated.Value(0))[0];
-  const scaleAnim = useState(new Animated.Value(0))[0];
-  const positionAnim = useState(new Animated.ValueXY({ x: 0, y: 0 }))[0];
 
   const ROUND1_SIZE = 30; // Small targets
   const ROUND2_SIZE = 80; // Large targets
-  const GAME_WIDTH = SCREEN_WIDTH - 80;
   const GAME_HEIGHT = 400;
   const TAPS_PER_ROUND = 10;
 
+  // Use measured width or fallback
+  const GAME_WIDTH = gameAreaSize.width;
+
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        friction: 5,
-        tension: 40,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 400,
+      useNativeDriver: true,
+    }).start();
   }, [phase]);
 
+  const onGameAreaLayout = (event) => {
+    const { width, height } = event.nativeEvent.layout;
+    setGameAreaSize({ width, height });
+  };
+
   const generateRandomPosition = (size, preferEdges = false) => {
-    const margin = size / 2 + 10;
-    const maxX = GAME_WIDTH - size;
-    const maxY = GAME_HEIGHT - size;
+    // Ensure bubble stays fully inside the game area
+    const padding = 10;
+    const minX = padding;
+    const minY = padding;
+    const maxX = GAME_WIDTH - size - padding;
+    const maxY = GAME_HEIGHT - size - padding;
 
     if (preferEdges) {
       // Round 1: Prefer positions near edges (far from center)
       const edge = Math.floor(Math.random() * 4);
+      // Ensure y values are also bounded
+      const safeRandomY = () => Math.max(minY, Math.min(maxY, Math.random() * maxY));
+      const safeRandomX = () => Math.max(minX, Math.min(maxX, Math.random() * maxX));
+      
       switch (edge) {
-        case 0: return { x: margin, y: Math.random() * maxY };
-        case 1: return { x: maxX - margin, y: Math.random() * maxY };
-        case 2: return { x: Math.random() * maxX, y: margin };
-        default: return { x: Math.random() * maxX, y: maxY - margin };
+        case 0: return { x: minX, y: safeRandomY() }; // Left edge
+        case 1: return { x: maxX, y: safeRandomY() }; // Right edge
+        case 2: return { x: safeRandomX(), y: minY }; // Top edge
+        default: return { x: safeRandomX(), y: maxY }; // Bottom edge
       }
     } else {
       // Round 2: Closer to center
-      const centerX = GAME_WIDTH / 2;
-      const centerY = GAME_HEIGHT / 2;
+      const centerX = GAME_WIDTH / 2 - size / 2;
+      const centerY = GAME_HEIGHT / 2 - size / 2;
       const range = 80;
       return {
-        x: centerX + (Math.random() - 0.5) * range,
-        y: centerY + (Math.random() - 0.5) * range,
+        x: Math.max(minX, Math.min(maxX, centerX + (Math.random() - 0.5) * range)),
+        y: Math.max(minY, Math.min(maxY, centerY + (Math.random() - 0.5) * range)),
       };
     }
+  };
+
+  // Clamp position to ensure bubble is always visible
+  const clampPosition = (pos, size) => {
+    const padding = 10;
+    const maxX = Math.max(padding, GAME_WIDTH - size - padding);
+    const maxY = Math.max(padding, GAME_HEIGHT - size - padding);
+    return {
+      x: Math.max(padding, Math.min(maxX, pos.x)),
+      y: Math.max(padding, Math.min(maxY, pos.y)),
+    };
   };
 
   const startRound = (roundNum) => {
     setRound(roundNum);
     setTapCount(0);
-    scaleAnim.setValue(0);
     fadeAnim.setValue(0);
     
     const preferEdges = roundNum === 1;
@@ -909,7 +923,6 @@ const FittsLawSimulation = ({ colors, onComplete }) => {
     const initialPos = generateRandomPosition(size, preferEdges);
     
     setTargetPosition(initialPos);
-    setLastTapPosition(initialPos);
     setLastTapTime(Date.now());
     setPhase(`round${roundNum}`);
   };
@@ -925,34 +938,11 @@ const FittsLawSimulation = ({ colors, onComplete }) => {
     return Math.log2(distance / width + 1);
   };
 
-  const handleTap = (event, targetSize) => {
+  const handleTap = () => {
     const now = Date.now();
     const movementTime = now - lastTapTime;
-    const tapX = event.nativeEvent.locationX;
-    const tapY = event.nativeEvent.locationY;
 
-    // Check if tap is inside target
-    const centerX = targetSize / 2;
-    const centerY = targetSize / 2;
-    const distance = Math.sqrt(
-      Math.pow(tapX - centerX, 2) + Math.pow(tapY - centerY, 2)
-    );
-    const isHit = distance <= targetSize / 2;
-
-    if (!isHit) {
-      // Error: missed target
-      const roundKey = `round${round}`;
-      setErrors(prev => ({ ...prev, [roundKey]: prev[roundKey] + 1 }));
-      return;
-    }
-
-    // Calculate movement distance from last tap
-    const movementDistance = calculateDistance(
-      lastTapPosition,
-      { x: tapX, y: tapY }
-    );
-
-    // Record movement time
+    // Record movement time (tap is always a hit since TouchableOpacity is the bubble itself)
     const roundKey = `round${round}`;
     setMovementTimes(prev => ({
       ...prev,
@@ -978,26 +968,7 @@ const FittsLawSimulation = ({ colors, onComplete }) => {
       const size = round === 1 ? ROUND1_SIZE : ROUND2_SIZE;
       const newPos = generateRandomPosition(size, preferEdges);
       
-      // Animate target to new position
-      scaleAnim.setValue(0);
-      Animated.sequence([
-        Animated.timing(scaleAnim, {
-          toValue: 0,
-          duration: 100,
-          useNativeDriver: true,
-        }),
-        Animated.parallel([
-          Animated.spring(scaleAnim, {
-            toValue: 1,
-            friction: 5,
-            tension: 40,
-            useNativeDriver: true,
-          }),
-        ]),
-      ]).start();
-
       setTargetPosition(newPos);
-      setLastTapPosition({ x: tapX, y: tapY });
       setLastTapTime(now);
     }
   };
@@ -1055,33 +1026,38 @@ const FittsLawSimulation = ({ colors, onComplete }) => {
 
         {/* Game Area */}
         <View style={[styles.gameArea, { backgroundColor: colors.surface }]}>
-          <View style={styles.gameGrid}>
-            {/* Animated Target Bubble */}
-            <Animated.View
-              style={[
-                styles.targetBubble,
-                {
-                  width: targetSize,
-                  height: targetSize,
-                  borderRadius: targetSize / 2,
-                  backgroundColor: colors.accent,
-                  position: 'absolute',
-                  left: targetPosition.x,
-                  top: targetPosition.y,
-                  transform: [{ scale: scaleAnim }],
-                },
-              ]}
-            >
-              <TouchableOpacity
-                style={styles.bubbleTouchArea}
-                onPress={(e) => handleTap(e, targetSize)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.bubbleText}>
-                  {tapCount + 1}
-                </Text>
-              </TouchableOpacity>
-            </Animated.View>
+          <View 
+            style={[styles.gameGrid, { overflow: 'hidden' }]}
+            onLayout={onGameAreaLayout}
+          >
+            {/* Target Bubble - Using TouchableOpacity directly */}
+            {(() => {
+              const clampedPos = clampPosition(targetPosition, targetSize);
+              return (
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={handleTap}
+                  style={[
+                    styles.targetBubble,
+                    {
+                      width: targetSize,
+                      height: targetSize,
+                      borderRadius: targetSize / 2,
+                      backgroundColor: colors.accent,
+                      position: 'absolute',
+                      left: clampedPos.x,
+                      top: clampedPos.y,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    },
+                  ]}
+                >
+                  <Text style={styles.bubbleText}>
+                    {tapCount + 1}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })()}
           </View>
         </View>
 
@@ -5825,74 +5801,64 @@ const OccamsRazorSimulation = ({ colors, onComplete }) => {
         {/* Stats Board */}
         <View style={[styles.statsBoard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
           <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              ⏱️ Hesitasi Interface 1:
-            </Text>
-            <Text style={[styles.statValue, { color: colors.accent }]}>
-              {(firstActionTimeA / 1000).toFixed(2)}s
-            </Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              🧠 Elemen UI Interface 1:
-            </Text>
-            <Text style={[styles.statValue, { color: '#EF4444' }]}>
-              18 elements (High)
-            </Text>
-          </View>
-          
-          <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              ⏱️ Hesitasi Interface 2:
-            </Text>
-            <Text style={[styles.statValue, { color: '#22C55E' }]}>
-              {(firstActionTimeB / 1000).toFixed(2)}s
-            </Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              🧠 Elemen UI Interface 2:
-            </Text>
-            <Text style={[styles.statValue, { color: '#22C55E' }]}>
-              2 elements (Low)
-            </Text>
+            <View style={styles.statItem}>
+              <View style={[styles.systemBadge, { backgroundColor: '#FEE2E2' }]}>
+                <Ionicons name="apps-outline" size={18} color="#DC2626" />
+                <Text style={[styles.systemBadgeText, { color: '#991B1B' }]}>Complex (18)</Text>
+              </View>
+              <Text style={[styles.statValue, { color: colors.textPrimary, fontSize: 24, marginTop: 8 }]}>
+                {(firstActionTimeA / 1000).toFixed(2)}s
+              </Text>
+              <Text style={[styles.statSubvalue, { color: colors.textSecondary }]}>
+                Hesitation Time
+              </Text>
+            </View>
+            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.statItem}>
+              <View style={[styles.systemBadge, { backgroundColor: '#DCFCE7' }]}>
+                <Ionicons name="remove-outline" size={18} color="#22C55E" />
+                <Text style={[styles.systemBadgeText, { color: '#166534' }]}>Simple (2)</Text>
+              </View>
+              <Text style={[styles.statValue, { color: '#22C55E', fontSize: 24, marginTop: 8 }]}>
+                {(firstActionTimeB / 1000).toFixed(2)}s
+              </Text>
+              <Text style={[styles.statSubvalue, { color: colors.textSecondary }]}>
+                Hesitation Time
+              </Text>
+            </View>
           </View>
 
-          <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+          <View style={[styles.comparisonBox, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE', marginTop: 12 }]}>
+            <Ionicons name="trending-down" size={24} color="#3B82F6" />
+            <Text style={[styles.comparisonText, { color: '#1E40AF' }]}>
+              Complexity Reduced: -{elementReduction}%
+            </Text>
+          </View>
+          {hesitationImprovement > 0 && (
+            <View style={[styles.comparisonBox, { backgroundColor: '#DCFCE7', borderColor: '#86EFAC', marginTop: 12 }]}>
+              <Ionicons name="rocket-outline" size={24} color="#22C55E" />
+              <Text style={[styles.comparisonText, { color: '#166534' }]}>
+                +{hesitationImprovement}% lebih cepat dengan interface sederhana!
+              </Text>
+            </View>
+          )}
 
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              📉 Reduksi Kompleksitas:
-            </Text>
-            <Text style={[styles.statValue, { color: '#22C55E', fontWeight: '700' }]}>
-              -{elementReduction}%
-            </Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              🚀 Peningkatan Kecepatan:
-            </Text>
-            <Text style={[styles.statValue, { color: hesitationImprovement > 0 ? '#22C55E' : colors.textPrimary }]}>
-              {hesitationImprovement > 0 ? '+' : ''}{hesitationImprovement}%
-            </Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              🏆 Interface Tercepat:
-            </Text>
-            <Text style={[styles.statValue, { color: colors.textPrimary, fontWeight: '700' }]}>
-              {fasterInterface}
+          <View style={[styles.comparisonBox, { backgroundColor: '#FEF3C7', borderColor: '#FCD34D', marginTop: 8 }]}>
+            <Ionicons name="trophy-outline" size={24} color="#D97706" />
+            <Text style={[styles.comparisonText, { color: '#92400E' }]}>
+              Tercepat: {fasterInterface}
             </Text>
           </View>
         </View>
 
         {/* Insight */}
         <View style={[styles.resultBox, { backgroundColor: colors.accentSubtle }]}>
-          <Text style={[styles.resultText, { color: colors.accent }]}>
-            🪒 Occam's Razor (Simplicity Principle)
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+            <Ionicons name="cut-outline" size={18} color={colors.accent} style={{ marginRight: 6 }} />
+            <Text style={[styles.resultText, { color: colors.accent, fontWeight: '700', fontSize: 16, marginBottom: 0 }]}>
+              Occam's Razor (Simplicity Principle)
+            </Text>
+          </View>
           <Text style={[styles.resultSubtext, { color: colors.textSecondary }]}>
             Solusi paling sederhana biasanya yang terbaik! Interface kompleks dengan 18 elemen membuat Anda ragu-ragu ({(firstActionTimeA/1000).toFixed(2)}s hesitasi).
             {'\n'}{'\n'}
@@ -6259,72 +6225,57 @@ const ParkinsonsLawSimulation = ({ colors, onComplete }) => {
         {/* Stats Board */}
         <View style={[styles.statsBoard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
           <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              ⏱️ Scenario 1 (60s limit):
-            </Text>
-            <Text style={[styles.statValue, { color: colors.accent }]}>
-              {completedA ? `${(completionTimeA / 1000).toFixed(1)}s` : 'Tidak selesai'}
-            </Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              ⚡ Kecepatan Ketik 1:
-            </Text>
-            <Text style={[styles.statValue, { color: colors.accent }]}>
-              {completedA ? `${speedA} char/min` : '0 char/min'}
-            </Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              ✅ Completion Rate 1:
-            </Text>
-            <Text style={[styles.statValue, { color: completedA ? '#22C55E' : '#EF4444' }]}>
-              {completedA ? '100%' : '0%'}
-            </Text>
-          </View>
-          
-          <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              ⏱️ Scenario 2 (5s limit):
-            </Text>
-            <Text style={[styles.statValue, { color: '#EF4444' }]}>
-              {completedB ? `${(completionTimeB / 1000).toFixed(1)}s` : 'Tidak selesai'}
-            </Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              ⚡ Kecepatan Ketik 2:
-            </Text>
-            <Text style={[styles.statValue, { color: '#EF4444' }]}>
-              {completedB ? `${speedB} char/min` : '0 char/min'}
-            </Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              ✅ Completion Rate 2:
-            </Text>
-            <Text style={[styles.statValue, { color: completedB ? '#22C55E' : '#EF4444' }]}>
-              {completedB ? '100%' : '0%'}
-            </Text>
+            <View style={styles.statItem}>
+              <View style={[styles.systemBadge, { backgroundColor: '#EFF6FF' }]}>
+                <Ionicons name="hourglass-outline" size={18} color="#3B82F6" />
+                <Text style={[styles.systemBadgeText, { color: '#1E40AF' }]}>Relaxed (60s)</Text>
+              </View>
+              <Text style={[styles.statValue, { color: colors.textPrimary, fontSize: 24, marginTop: 8 }]}>
+                {completedA ? `${(completionTimeA / 1000).toFixed(1)}s` : '-'}
+              </Text>
+              <Text style={[styles.statSubvalue, { color: colors.textSecondary }]}>
+                {completedA ? `${speedA} char/min` : 'Tidak selesai'}
+              </Text>
+              <View style={[styles.statusBadge, { backgroundColor: completedA ? '#DCFCE7' : '#FEE2E2', marginTop: 8 }]}>
+                <Ionicons name={completedA ? 'checkmark-circle' : 'close-circle'} size={14} color={completedA ? '#22C55E' : '#EF4444'} />
+                <Text style={{ color: completedA ? '#166534' : '#991B1B', fontSize: 11, fontWeight: '600', marginLeft: 4 }}>
+                  {completedA ? '100%' : '0%'}
+                </Text>
+              </View>
+            </View>
+            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.statItem}>
+              <View style={[styles.systemBadge, { backgroundColor: '#FEE2E2' }]}>
+                <Ionicons name="flash-outline" size={18} color="#DC2626" />
+                <Text style={[styles.systemBadgeText, { color: '#991B1B' }]}>Urgent (5s)</Text>
+              </View>
+              <Text style={[styles.statValue, { color: colors.textPrimary, fontSize: 24, marginTop: 8 }]}>
+                {completedB ? `${(completionTimeB / 1000).toFixed(1)}s` : '-'}
+              </Text>
+              <Text style={[styles.statSubvalue, { color: colors.textSecondary }]}>
+                {completedB ? `${speedB} char/min` : 'Tidak selesai'}
+              </Text>
+              <View style={[styles.statusBadge, { backgroundColor: completedB ? '#DCFCE7' : '#FEE2E2', marginTop: 8 }]}>
+                <Ionicons name={completedB ? 'checkmark-circle' : 'close-circle'} size={14} color={completedB ? '#22C55E' : '#EF4444'} />
+                <Text style={{ color: completedB ? '#166534' : '#991B1B', fontSize: 11, fontWeight: '600', marginLeft: 4 }}>
+                  {completedB ? '100%' : '0%'}
+                </Text>
+              </View>
+            </View>
           </View>
 
-          <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+          {speedImprovement > 0 && (
+            <View style={[styles.comparisonBox, { backgroundColor: '#DCFCE7', borderColor: '#86EFAC', marginTop: 12 }]}>
+              <Ionicons name="trending-up" size={24} color="#22C55E" />
+              <Text style={[styles.comparisonText, { color: '#166534' }]}>
+                +{speedImprovement}% lebih cepat dengan deadline ketat!
+              </Text>
+            </View>
+          )}
 
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              📈 Peningkatan Kecepatan:
-            </Text>
-            <Text style={[styles.statValue, { color: speedImprovement > 0 ? '#22C55E' : colors.textPrimary }]}>
-              {speedImprovement > 0 ? `+${speedImprovement}%` : 'N/A'}
-            </Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              🏆 Scenario Tercepat:
-            </Text>
-            <Text style={[styles.statValue, { color: colors.textPrimary, fontWeight: '700' }]}>
+          <View style={[styles.comparisonBox, { backgroundColor: '#FEF3C7', borderColor: '#FCD34D', marginTop: 8 }]}>
+            <Ionicons name="trophy-outline" size={24} color="#D97706" />
+            <Text style={[styles.comparisonText, { color: '#92400E' }]}>
               {fasterScenario}
             </Text>
           </View>
@@ -6332,9 +6283,12 @@ const ParkinsonsLawSimulation = ({ colors, onComplete }) => {
 
         {/* Insight */}
         <View style={[styles.resultBox, { backgroundColor: colors.accentSubtle }]}>
-          <Text style={[styles.resultText, { color: colors.accent }]}>
-            ⏰ Parkinson's Law
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+            <Ionicons name="time" size={18} color={colors.accent} style={{ marginRight: 6 }} />
+            <Text style={[styles.resultText, { color: colors.accent, fontWeight: '700', fontSize: 16, marginBottom: 0 }]}>
+              Parkinson's Law
+            </Text>
+          </View>
           <Text style={[styles.resultSubtext, { color: colors.textSecondary }]}>
             "Pekerjaan mengembang untuk mengisi waktu yang tersedia untuk penyelesaiannya."
             {'\n'}{'\n'}
@@ -8481,47 +8435,63 @@ const VonRestorffSimulation = ({ colors, onComplete }) => {
         {/* Stats Board */}
         <View style={[styles.statsBoard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
           <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              🎯 Your Answer:
-            </Text>
-            <Text style={[styles.statValue, { color: isCorrect ? '#22C55E' : '#EF4444', fontWeight: '700' }]}>
-              Position {selectedPosition !== null ? selectedPosition + 1 : '-'}
-            </Text>
+            <View style={styles.statItem}>
+              <View style={[styles.systemBadge, { backgroundColor: isCorrect ? '#DCFCE7' : '#FEE2E2' }]}>
+                <Ionicons name="locate-outline" size={18} color={isCorrect ? '#22C55E' : '#EF4444'} />
+                <Text style={[styles.systemBadgeText, { color: isCorrect ? '#166534' : '#991B1B' }]}>Your Answer</Text>
+              </View>
+              <Text style={[styles.statValue, { color: isCorrect ? '#22C55E' : '#EF4444', fontSize: 28, marginTop: 8 }]}>
+                #{selectedPosition !== null ? selectedPosition + 1 : '-'}
+              </Text>
+              <Text style={[styles.statSubvalue, { color: colors.textSecondary }]}>
+                Position
+              </Text>
+            </View>
+            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.statItem}>
+              <View style={[styles.systemBadge, { backgroundColor: '#FEF3C7' }]}>
+                <Ionicons name="star" size={18} color="#D97706" />
+                <Text style={[styles.systemBadgeText, { color: '#92400E' }]}>Distinctive</Text>
+              </View>
+              <Text style={[styles.statValue, { color: '#F59E0B', fontSize: 28, marginTop: 8 }]}>
+                #{distinctivePosition + 1}
+              </Text>
+              <Text style={[styles.statSubvalue, { color: colors.textSecondary }]}>
+                Position
+              </Text>
+            </View>
           </View>
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              ✅ Recall Accuracy:
-            </Text>
-            <Text style={[styles.statValue, { color: isCorrect ? '#22C55E' : '#EF4444', fontWeight: '700' }]}>
-              {recallRate}% {isCorrect ? '✓' : '✗'}
-            </Text>
-          </View>
-          
-          <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
 
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              ⭐ Distinctive Element:
-            </Text>
-            <Text style={[styles.statValue, { color: '#FBBF24', fontWeight: '700' }]}>
-              Position {distinctivePosition + 1}
-            </Text>
+          <View style={[styles.comparisonBox, { backgroundColor: isCorrect ? '#DCFCE7' : '#FEE2E2', borderColor: isCorrect ? '#86EFAC' : '#FCA5A5', marginTop: 12 }]}>
+            <Ionicons name={isCorrect ? 'checkmark-circle' : 'close-circle'} size={24} color={isCorrect ? '#22C55E' : '#EF4444'} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.comparisonText, { color: isCorrect ? '#166534' : '#991B1B', fontSize: 12 }]}>Recall Accuracy</Text>
+              <Text style={[styles.comparisonText, { color: isCorrect ? '#166534' : '#991B1B', fontWeight: '700' }]}>
+                {recallRate}%
+              </Text>
+            </View>
           </View>
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              📊 Von Restorff Confirmed:
-            </Text>
-            <Text style={[styles.statValue, { color: isCorrect ? '#22C55E' : colors.textPrimary, fontWeight: '700' }]}>
-              {isCorrect ? 'Yes! ✓' : 'Not this time'}
+
+          <View style={[styles.comparisonBox, { 
+            backgroundColor: isCorrect ? '#DCFCE7' : '#FEF3C7', 
+            borderColor: isCorrect ? '#86EFAC' : '#FCD34D',
+            marginTop: 8 
+          }]}>
+            <Ionicons name="bulb-outline" size={24} color={isCorrect ? '#22C55E' : '#D97706'} />
+            <Text style={[styles.comparisonText, { color: isCorrect ? '#166534' : '#92400E' }]}>
+              Von Restorff Effect: {isCorrect ? 'Confirmed!' : 'Not this time'}
             </Text>
           </View>
         </View>
 
         {/* Insight */}
         <View style={[styles.resultBox, { backgroundColor: colors.accentSubtle }]}>
-          <Text style={[styles.resultText, { color: colors.accent }]}>
-            ⭐ Von Restorff Effect (Isolation Effect)
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+            <Ionicons name="star" size={18} color={colors.accent} style={{ marginRight: 6 }} />
+            <Text style={[styles.resultText, { color: colors.accent, fontWeight: '700', fontSize: 16, marginBottom: 0 }]}>
+              Von Restorff Effect (Isolation Effect)
+            </Text>
+          </View>
           <Text style={[styles.resultSubtext, { color: colors.textSecondary }]}>
             {isCorrect 
               ? `Tepat! Anda mengingat kartu di posisi ${distinctivePosition + 1} karena tampilannya menonjol (elevated, shadow, warna berbeda). Item yang berbeda dari sekitarnya lebih mudah diingat!`
@@ -8799,47 +8769,60 @@ const ZeigarnikSimulation = ({ colors, onComplete }) => {
         {/* Stats Board */}
         <View style={[styles.statsBoard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
           <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              ⏱️ Reaction Time:
-            </Text>
-            <Text style={[styles.statValue, { color: colors.accent }]}>
-              {(clickTime / 1000).toFixed(2)}s
-            </Text>
+            <View style={styles.statItem}>
+              <View style={[styles.systemBadge, { backgroundColor: colors.accentSubtle }]}>
+                <Ionicons name="time-outline" size={18} color={colors.accent} />
+                <Text style={[styles.systemBadgeText, { color: colors.accent }]}>Reaction Time</Text>
+              </View>
+              <Text style={[styles.statValue, { color: colors.textPrimary, fontSize: 28, marginTop: 8 }]}>
+                {(clickTime / 1000).toFixed(2)}s
+              </Text>
+            </View>
+            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.statItem}>
+              <View style={[styles.systemBadge, { backgroundColor: selectedIncomplete ? '#FEF3C7' : '#DCFCE7' }]}>
+                <Ionicons name="hand-left-outline" size={18} color={selectedIncomplete ? '#D97706' : '#22C55E'} />
+                <Text style={[styles.systemBadgeText, { color: selectedIncomplete ? '#92400E' : '#166534' }]}>Your Choice</Text>
+              </View>
+              <Text style={[styles.statValue, { color: selectedIncomplete ? '#F59E0B' : '#22C55E', fontSize: 28, marginTop: 8 }]}>
+                Widget {selectedWidget}
+              </Text>
+            </View>
           </View>
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              🎯 Your Choice:
-            </Text>
-            <Text style={[styles.statValue, { color: selectedIncomplete ? '#F59E0B' : '#22C55E', fontWeight: '700' }]}>
-              Widget {selectedWidget}
-            </Text>
-          </View>
-          
-          <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
 
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              📊 Click-Through Preference:
-            </Text>
-            <Text style={[styles.statValue, { color: colors.textPrimary, fontWeight: '700' }]}>
-              {selectedComplete ? 'Complete (100%)' : 'Incomplete (85%)'}
-            </Text>
+          <View style={[styles.comparisonBox, { backgroundColor: colors.surface || colors.cardBackground, borderColor: colors.border, marginTop: 12 }]}>
+            <Ionicons name="analytics-outline" size={20} color={colors.textSecondary} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.comparisonText, { color: colors.textSecondary, fontSize: 12 }]}>Click-Through Preference</Text>
+              <Text style={[styles.comparisonText, { color: colors.textPrimary, fontWeight: '700' }]}>
+                {selectedComplete ? 'Complete (100%)' : 'Incomplete (85%)'}
+              </Text>
+            </View>
           </View>
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              🧠 Zeigarnik Effect:
-            </Text>
-            <Text style={[styles.statValue, { color: zeigarnikConfirmed ? '#22C55E' : colors.textPrimary, fontWeight: '700' }]}>
-              {zeigarnikConfirmed ? 'Confirmed ✓' : 'Not This Time'}
-            </Text>
+
+          <View style={[styles.comparisonBox, { 
+            backgroundColor: zeigarnikConfirmed ? '#DCFCE7' : '#FEF3C7', 
+            borderColor: zeigarnikConfirmed ? '#86EFAC' : '#FCD34D',
+            marginTop: 8 
+          }]}>
+            <Ionicons name="bulb-outline" size={20} color={zeigarnikConfirmed ? '#22C55E' : '#D97706'} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.comparisonText, { color: zeigarnikConfirmed ? '#166534' : '#92400E', fontSize: 12 }]}>Zeigarnik Effect</Text>
+              <Text style={[styles.comparisonText, { color: zeigarnikConfirmed ? '#166534' : '#92400E', fontWeight: '700' }]}>
+                {zeigarnikConfirmed ? 'Confirmed ✓' : 'Not This Time'}
+              </Text>
+            </View>
           </View>
         </View>
 
         {/* Insight */}
         <View style={[styles.resultBox, { backgroundColor: colors.accentSubtle }]}>
-          <Text style={[styles.resultText, { color: colors.accent }]}>
-            🧠 Zeigarnik Effect
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+            <Ionicons name="bulb" size={18} color={colors.accent} style={{ marginRight: 6 }} />
+            <Text style={[styles.resultText, { color: colors.accent, fontWeight: '700', fontSize: 16, marginBottom: 0 }]}>
+              Zeigarnik Effect
+            </Text>
+          </View>
           <Text style={[styles.resultSubtext, { color: colors.textSecondary }]}>
             {zeigarnikConfirmed 
               ? `Tepat! Anda memilih Widget B (incomplete) karena tugas yang belum selesai menciptakan "psychological tension" - keinginan kuat untuk menyelesaikannya. Progress bar 85% dengan gap membuat otak Anda berpikir "hanya tinggal sedikit lagi!"`
@@ -9300,49 +9283,75 @@ const PeakEndSimulation = ({ colors, onComplete }) => {
         {/* Stats Board */}
         <View style={[styles.statsBoard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
           <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              🎯 Scenario A (Flat):
-            </Text>
-            <Text style={[styles.statValue, { color: '#3B82F6', fontWeight: '700' }]}>
-              {ratingA} Stars
-            </Text>
+            <View style={styles.statItem}>
+              <View style={[styles.systemBadge, { backgroundColor: '#EFF6FF' }]}>
+                <Ionicons name="remove-outline" size={18} color="#3B82F6" />
+                <Text style={[styles.systemBadgeText, { color: '#1E40AF' }]}>Flat (A)</Text>
+              </View>
+              <View style={[styles.starDisplay, { marginTop: 8 }]}>
+                {[...Array(5)].map((_, i) => (
+                  <Ionicons 
+                    key={i}
+                    name="star" 
+                    size={20} 
+                    color={i < ratingA ? '#3B82F6' : '#D1D5DB'} 
+                  />
+                ))}
+              </View>
+              <Text style={[styles.statSubvalue, { color: colors.textSecondary, marginTop: 4 }]}>
+                Rating: {ratingA}/5
+              </Text>
+            </View>
+            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.statItem}>
+              <View style={[styles.systemBadge, { backgroundColor: '#FEF3C7' }]}>
+                <Ionicons name="sparkles-outline" size={18} color="#D97706" />
+                <Text style={[styles.systemBadgeText, { color: '#92400E' }]}>Peak-End (B)</Text>
+              </View>
+              <View style={[styles.starDisplay, { marginTop: 8 }]}>
+                {[...Array(5)].map((_, i) => (
+                  <Ionicons 
+                    key={i}
+                    name="star" 
+                    size={20} 
+                    color={i < ratingB ? '#F59E0B' : '#D1D5DB'} 
+                  />
+                ))}
+              </View>
+              <Text style={[styles.statSubvalue, { color: colors.textSecondary, marginTop: 4 }]}>
+                Rating: {ratingB}/5
+              </Text>
+            </View>
           </View>
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              ⭐ Scenario B (Peak-End):
-            </Text>
-            <Text style={[styles.statValue, { color: '#F59E0B', fontWeight: '700' }]}>
-              {ratingB} Stars
-            </Text>
-          </View>
-          
-          <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
 
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              🎭 Peak Moment:
-            </Text>
-            <Text style={[styles.statValue, { color: colors.textPrimary, fontWeight: '700' }]}>
-              {ratingB > ratingA ? 'Works!' : 'User Preference'}
-            </Text>
+          <View style={[styles.comparisonBox, { backgroundColor: '#F3E8FF', borderColor: '#D8B4FE', marginTop: 12 }]}>
+            <Ionicons name="flash-outline" size={24} color="#9333EA" />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.comparisonText, { color: '#6B21A8', fontSize: 12 }]}>Peak Moment</Text>
+              <Text style={[styles.comparisonText, { color: '#6B21A8', fontWeight: '700' }]}>
+                {ratingB > ratingA ? 'Works!' : 'User Preference'}
+              </Text>
+            </View>
           </View>
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              🎉 End Experience:
-            </Text>
-            <Text style={[styles.statValue, { color: colors.textPrimary, fontWeight: '700' }]}>
-              Celebration Effect
-            </Text>
+
+          <View style={[styles.comparisonBox, { backgroundColor: '#DCFCE7', borderColor: '#86EFAC', marginTop: 8 }]}>
+            <Ionicons name="ribbon-outline" size={24} color="#22C55E" />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.comparisonText, { color: '#166534', fontSize: 12 }]}>End Experience</Text>
+              <Text style={[styles.comparisonText, { color: '#166534', fontWeight: '700' }]}>
+                Celebration Effect
+              </Text>
+            </View>
           </View>
         </View>
 
         {/* Comparison (if both tested) */}
         {ratingA > 0 && ratingB > 0 && (
           <View style={[styles.comparisonBox, { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }]}>
-            <Text style={[styles.comparisonTitle, { color: '#166534' }]}>
+            <Text style={[styles.comparisonTitle, { color: '#166534', fontWeight: '700', fontSize: 16 }]}>
               📊 Comparison
             </Text>
-            <Text style={[styles.comparisonDiff, { color: '#166534' }]}>
+            <Text style={[styles.comparisonDiff, { color: '#166534', fontWeight: '600', fontSize: 14 }]}>
               {ratingB > ratingA 
                 ? `Peak-End lebih tinggi ${ratingB - ratingA} bintang! ✓`
                 : ratingB < ratingA
@@ -9355,9 +9364,12 @@ const PeakEndSimulation = ({ colors, onComplete }) => {
 
         {/* Insight */}
         <View style={[styles.resultBox, { backgroundColor: colors.accentSubtle }]}>
-          <Text style={[styles.resultText, { color: colors.accent }]}>
-            🎭 Peak-End Rule (Kahneman)
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+            <Ionicons name="ribbon" size={18} color={colors.accent} style={{ marginRight: 6 }} />
+            <Text style={[styles.resultText, { color: colors.accent, fontWeight: '700', fontSize: 16, marginBottom: 0 }]}>
+              Peak-End Rule (Kahneman)
+            </Text>
+          </View>
           <Text style={[styles.resultSubtext, { color: colors.textSecondary }]}>
             Research menunjukkan bahwa orang menilai experience berdasarkan 2 momen kunci: <Text style={{ fontWeight: '600' }}>Peak (momen paling intens)</Text> dan <Text style={{ fontWeight: '600' }}>End (momen terakhir)</Text>, bukan rata-rata keseluruhan!
             {'\n'}{'\n'}
@@ -9731,9 +9743,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   statValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '700',
     marginBottom: 4,
+    marginLeft: 4,
   },
   statSubvalue: {
     fontSize: 12,
@@ -9872,6 +9885,13 @@ const styles = StyleSheet.create({
     gap: 4,
     marginTop: 12,
     justifyContent: 'center',
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 12,
   },
   imageGrid: {
     flexDirection: 'row',
